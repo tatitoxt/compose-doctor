@@ -128,16 +128,21 @@ type pair struct{ Key, Val *yaml.Node }
 // pairs returns the key/value pairs of a mapping, applying "<<" merge keys.
 // Explicit keys win over merged ones; for a merge sequence, earlier entries
 // win over later ones (YAML merge key semantics).
-func pairs(n *yaml.Node) []pair { return mergedPairs(n, 0, map[*yaml.Node][]pair{}) }
+func pairs(n *yaml.Node) []pair { return mergedPairs(n, 0, map[memoKey][]pair{}) }
 
-// mergedPairs memoises by node so shared merge anchors are expanded once,
-// keeping the work linear in the document size.
-func mergedPairs(n *yaml.Node, depth int, memo map[*yaml.Node][]pair) []pair {
+type memoKey struct {
+	n     *yaml.Node
+	depth int
+}
+
+// mergedPairs memoises by node and depth so shared merge anchors are expanded
+// once per depth (bounded by maxAliasDepth), keeping the work polynomial.
+func mergedPairs(n *yaml.Node, depth int, memo map[memoKey][]pair) []pair {
 	n = resolve(n)
 	if n == nil || n.Kind != yaml.MappingNode || depth > maxAliasDepth {
 		return nil
 	}
-	if cached, ok := memo[n]; ok {
+	if cached, ok := memo[memoKey{n, depth}]; ok {
 		return cached
 	}
 	var explicit, merged []pair
@@ -160,7 +165,7 @@ func mergedPairs(n *yaml.Node, depth int, memo map[*yaml.Node][]pair) []pair {
 		explicit = append(explicit, pair{k, v})
 	}
 	out := appendMissing(explicit, merged)
-	memo[n] = out
+	memo[memoKey{n, depth}] = out
 	return out
 }
 
