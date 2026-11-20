@@ -84,12 +84,15 @@ type Volume struct {
 // NetworkRef is a network a service attaches to.
 type NetworkRef struct {
 	Name string
-	Loc  Location
+	// Shown is Name, or the raw text when the name was interpolated.
+	Shown string
+	Loc   Location
 }
 
 // Dependency is one depends_on entry.
 type Dependency struct {
 	Service   string
+	Shown     string // Service, or the raw text when interpolated
 	Condition string // empty for short syntax
 	Required  bool
 	Short     bool
@@ -100,6 +103,9 @@ type Dependency struct {
 type Healthcheck struct {
 	Loc      Location
 	Disabled bool
+	// disableKey and testNone record the two ways of disabling a
+	// healthcheck so field-wise override merges can recompute Disabled.
+	disableKey, testNone bool
 }
 
 // VarUse is a variable reference found in a Compose file.

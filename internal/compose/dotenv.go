@@ -22,6 +22,19 @@ var ErrNotRegular = errors.New("not a regular file")
 // values. Lines without "=" are ignored.
 func ParseDotenv(data []byte) map[string]string {
 	out := map[string]string{}
+	for _, e := range parseDotenvEntries(data) {
+		out[e.Key] = e.Value
+	}
+	return out
+}
+
+type dotenvEntry struct {
+	Key, Value string
+	Literal    bool // single-quoted: no interpolation
+}
+
+func parseDotenvEntries(data []byte) []dotenvEntry {
+	var out []dotenvEntry
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf"))
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(make([]byte, 64*1024), MaxAuxFileSize)
@@ -39,7 +52,8 @@ func ParseDotenv(data []byte) map[string]string {
 		if !validName(key) {
 			continue
 		}
-		out[key] = unquote(strings.TrimSpace(val))
+		val = strings.TrimSpace(val)
+		out = append(out, dotenvEntry{Key: key, Value: unquote(val), Literal: strings.HasPrefix(val, "'")})
 	}
 	return out
 }

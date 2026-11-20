@@ -36,3 +36,11 @@ func TestReadRegularFile(t *testing.T) {
 		t.Fatalf("expected not-exist, got %v", err)
 	}
 }
+
+func TestDotenvSingleQuotedIsLiteral(t *testing.T) {
+	p := &Project{env: map[string]string{}}
+	p.loadDotenv([]byte("A=1\nB=${A}2\nC='${A}'\n"), []string{"A=9"})
+	if p.env["B"] != "92" || p.env["C"] != "${A}" {
+		t.Errorf("got B=%q C=%q", p.env["B"], p.env["C"])
+	}
+}

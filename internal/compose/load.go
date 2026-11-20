@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -164,9 +165,7 @@ func (p *Project) loadEnv(opts Options) error {
 	switch {
 	case err == nil:
 		p.DotenvFile = p.Display(dotenv)
-		for k, v := range ParseDotenv(data) {
-			p.env[k] = v
-		}
+		p.loadDotenv(data, opts.Environ)
 	case explicit || !errors.Is(err, os.ErrNotExist):
 		return &LoadError{Loc: Location{File: p.Display(dotenv)}, Msg: "cannot read env file: " + describeErr(err)}
 	}
@@ -302,6 +301,11 @@ func (p *Project) mergeFile(file string, root *yaml.Node) error {
 			if kv.Key.Value == "networks" {
 				target = p.Networks
 			}
+			if hasTag(kv.Val, "!reset") || hasTag(kv.Val, "!override") {
+				for name := range target {
+					delete(target, name)
+				}
+			}
 			for _, e := range pairs(val) {
 				if _, ok := target[e.Key.Value]; !ok {
 					target[e.Key.Value] = loc(file, e.Key)
@@ -314,12 +318,26 @@ func (p *Project) mergeFile(file string, root *yaml.Node) error {
 			if val == nil || val.Kind != yaml.MappingNode {
 				return &LoadError{Loc: loc(file, kv.Key), Msg: "\"services\" must be a mapping"}
 			}
+			if hasTag(kv.Val, "!reset") || hasTag(kv.Val, "!override") {
+				p.Services = map[string]*Service{}
+			}
 			for _, s := range pairs(val) {
+				if hasTag(s.Val, "!reset") {
+					delete(p.Services, s.Key.Value)
+					continue
+				}
+				if hasTag(s.Val, "!override") {
+					delete(p.Services, s.Key.Value)
+				}
 				p.mergeService(file, s.Key, resolve(s.Val))
 			}
 		}
 	}
 	return nil
+}
+
+func hasTag(n *yaml.Node, tag string) bool {
+	return n != nil && (n.Tag == tag || (resolve(n) != nil && resolve(n).Tag == tag))
 }
 
 func (p *Project) mergeService(file string, key, n *yaml.Node) {
@@ -351,7 +369,7 @@ func (p *Project) mergeService(file string, key, n *yaml.Node) {
 				s.Image = &val
 			}
 		case "build":
-			s.Build = p.build(file, kv.Key, v)
+			s.Build = p.build(file, kv.Key, v, s.Build)
 		case "extends":
 			s.Extends = true
 		case "env_file":
@@ -369,12 +387,13 @@ func (p *Project) mergeService(file string, key, n *yaml.Node) {
 		case "depends_on":
 			p.mergeDepends(file, s, v)
 		case "healthcheck":
-			s.Healthcheck = healthcheck(file, kv.Key, v)
+			s.Healthcheck = healthcheck(file, kv.Key, v, s.Healthcheck)
 		case "profiles":
-			s.Profiles = nil
 			for _, it := range items(v) {
 				if it.Kind == yaml.ScalarNode {
-					s.Profiles = append(s.Profiles, p.value(file, it).Value)
+					if name := p.value(file, it).Value; !slices.Contains(s.Profiles, name) {
+						s.Profiles = append(s.Profiles, name)
+					}
 				}
 			}
 		case "network_mode":
@@ -411,15 +430,20 @@ func resetField(s *Service, k string) {
 	}
 }
 
-func (p *Project) build(file string, key, n *yaml.Node) *Build {
-	b := &Build{Loc: loc(file, key)}
+// build merges a build section onto prev (from an earlier file) field by
+// field, as Docker Compose merges mappings.
+func (p *Project) build(file string, key, n *yaml.Node, prev *Build) *Build {
+	b := &Build{Loc: loc(file, key), Context: Value{Raw: ".", Value: ".", Loc: loc(file, key)}}
+	if prev != nil {
+		cp := *prev
+		b = &cp
+	}
 	switch {
 	case n == nil || isNull(n):
 		return nil
 	case n.Kind == yaml.ScalarNode:
 		b.Context = p.value(file, n)
 	case n.Kind == yaml.MappingNode:
-		b.Context = Value{Raw: ".", Value: ".", Loc: loc(file, key)}
 		if _, c := lookup(n, "context"); c != nil && c.Kind == yaml.ScalarNode {
 			b.Context = p.value(file, c)
 		}
@@ -438,8 +462,9 @@ func (p *Project) build(file string, key, n *yaml.Node) *Build {
 
 func (p *Project) mergeEnvFiles(file string, s *Service, n *yaml.Node) {
 	add := func(ref EnvFileRef) {
-		for _, e := range s.EnvFiles {
+		for i, e := range s.EnvFiles {
 			if e.Path.Value == ref.Path.Value {
+				s.EnvFiles[i] = ref
 				return
 			}
 		}
@@ -558,13 +583,13 @@ func shortVolumeType(src string) string {
 func isLetter(c byte) bool { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') }
 
 func (p *Project) mergeNetworks(file string, s *Service, n *yaml.Node) {
-	add := func(name string, l Location) {
+	add := func(name, shown string, l Location) {
 		for _, e := range s.Networks {
 			if e.Name == name {
 				return
 			}
 		}
-		s.Networks = append(s.Networks, NetworkRef{Name: name, Loc: l})
+		s.Networks = append(s.Networks, NetworkRef{Name: name, Shown: shown, Loc: l})
 	}
 	if n == nil {
 		return
@@ -573,12 +598,13 @@ func (p *Project) mergeNetworks(file string, s *Service, n *yaml.Node) {
 	case yaml.SequenceNode:
 		for _, it := range items(n) {
 			if it.Kind == yaml.ScalarNode {
-				add(p.value(file, it).Value, loc(file, it))
+				v := p.value(file, it)
+				add(v.Value, shownValue(v), loc(file, it))
 			}
 		}
 	case yaml.MappingNode:
 		for _, kv := range pairs(n) {
-			add(kv.Key.Value, loc(file, kv.Key))
+			add(kv.Key.Value, kv.Key.Value, loc(file, kv.Key))
 		}
 	}
 }
@@ -600,12 +626,18 @@ func (p *Project) mergeDepends(file string, s *Service, n *yaml.Node) {
 	case yaml.SequenceNode:
 		for _, it := range items(n) {
 			if it.Kind == yaml.ScalarNode {
-				set(Dependency{Service: p.value(file, it).Value, Required: true, Short: true, Loc: loc(file, it)})
+				v := p.value(file, it)
+				set(Dependency{Service: v.Value, Shown: shownValue(v), Required: true, Short: true, Loc: loc(file, it)})
 			}
 		}
 	case yaml.MappingNode:
 		for _, kv := range pairs(n) {
-			d := Dependency{Service: kv.Key.Value, Required: true, Loc: loc(file, kv.Key)}
+			d := Dependency{Service: kv.Key.Value, Shown: kv.Key.Value, Required: true, Loc: loc(file, kv.Key)}
+			for _, e := range s.DependsOn {
+				if e.Service == d.Service && !e.Short {
+					d.Condition, d.Required = e.Condition, e.Required
+				}
+			}
 			body := resolve(kv.Val)
 			if _, c := lookup(body, "condition"); c != nil && c.Kind == yaml.ScalarNode {
 				d.Condition = p.value(file, c).Value
@@ -620,22 +652,63 @@ func (p *Project) mergeDepends(file string, s *Service, n *yaml.Node) {
 	}
 }
 
-func healthcheck(file string, key, n *yaml.Node) *Healthcheck {
+// healthcheck merges a healthcheck section onto prev field by field.
+func healthcheck(file string, key, n *yaml.Node, prev *Healthcheck) *Healthcheck {
 	h := &Healthcheck{Loc: loc(file, key)}
+	if prev != nil {
+		h.disableKey, h.testNone = prev.disableKey, prev.testNone
+	}
 	if _, d := lookup(n, "disable"); d != nil && d.Kind == yaml.ScalarNode {
-		if b, err := strconv.ParseBool(d.Value); err == nil && b {
-			h.Disabled = true
-		}
+		b, err := strconv.ParseBool(d.Value)
+		h.disableKey = err == nil && b
 	}
 	if _, t := lookup(n, "test"); t != nil {
+		h.testNone = false
 		switch {
 		case t.Kind == yaml.ScalarNode && strings.EqualFold(strings.TrimSpace(t.Value), "NONE"):
-			h.Disabled = true
+			h.testNone = true
 		case t.Kind == yaml.SequenceNode:
 			if it := items(t); len(it) > 0 && it[0].Kind == yaml.ScalarNode && strings.EqualFold(it[0].Value, "NONE") {
-				h.Disabled = true
+				h.testNone = true
 			}
 		}
 	}
+	h.Disabled = h.disableKey || h.testNone
 	return h
+}
+
+// loadDotenv stores .env values, interpolating unquoted and double-quoted
+// values from the process environment and earlier .env entries, as Docker
+// Compose does. Single-quoted values are literal.
+func (p *Project) loadDotenv(data []byte, environ []string) {
+	osEnv := map[string]string{}
+	for _, kv := range environ {
+		if k, v, ok := strings.Cut(kv, "="); ok && k != "" {
+			osEnv[k] = v
+		}
+	}
+	for _, e := range parseDotenvEntries(data) {
+		v := e.Value
+		if !e.Literal {
+			lookup := func(name string) (string, bool) {
+				if val, ok := osEnv[name]; ok {
+					return val, true
+				}
+				val, ok := p.env[name]
+				return val, ok
+			}
+			if expanded, _, err := Interpolate(v, lookup); err == nil {
+				v = expanded
+			}
+		}
+		p.env[e.Key] = v
+	}
+}
+
+// shownValue is the text rules may print for v: never an interpolated value.
+func shownValue(v Value) string {
+	if v.Interpolated {
+		return v.Raw
+	}
+	return v.Value
 }
