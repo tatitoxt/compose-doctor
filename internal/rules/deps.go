@@ -27,9 +27,9 @@ func checkUndefinedDeps(r Rule, p *compose.Project) []Finding {
 				continue
 			}
 			out = append(out, r.finding(d.Loc,
-				fmt.Sprintf("service %q depends on undefined service %q", s.Name, d.Service),
+				fmt.Sprintf("service %q depends on undefined service %q", s.Name, d.Shown),
 				"Fix the service name, or load the file that defines it with an extra -f. Use `required: false` if the dependency is optional.",
-				map[string]string{"service": s.Name, "dependency": d.Service}))
+				map[string]string{"service": s.Name, "dependency": d.Shown}))
 		}
 	}
 	return out
@@ -43,14 +43,14 @@ func checkReadiness(r Rule, p *compose.Project) []Finding {
 			if !ok || !p.IsActive(dep) || (d.Condition != "" && d.Condition != "service_started") {
 				continue
 			}
-			suggestion := fmt.Sprintf("Add a healthcheck to %q and use the long syntax `depends_on: {%s: {condition: service_healthy}}`, or make %q retry its connection on start-up.", d.Service, d.Service, s.Name)
+			suggestion := fmt.Sprintf("Add a healthcheck to %q and use the long syntax `depends_on: {%s: {condition: service_healthy}}`, or make %q retry its connection on start-up.", d.Shown, d.Shown, s.Name)
 			if hasHealthcheck(dep) {
-				suggestion = fmt.Sprintf("%q already has a healthcheck: use `depends_on: {%s: {condition: service_healthy}}`.", d.Service, d.Service)
+				suggestion = fmt.Sprintf("%q already has a healthcheck: use `depends_on: {%s: {condition: service_healthy}}`.", d.Shown, d.Shown)
 			}
 			out = append(out, r.finding(d.Loc,
-				fmt.Sprintf("service %q waits only for %q to start, not to be ready", s.Name, d.Service),
+				fmt.Sprintf("service %q waits only for %q to start, not to be ready", s.Name, d.Shown),
 				suggestion,
-				map[string]string{"service": s.Name, "dependency": d.Service, "condition": conditionOrDefault(d.Condition)}))
+				map[string]string{"service": s.Name, "dependency": d.Shown, "condition": conditionOrDefault(d.Condition)}))
 		}
 	}
 	return out
@@ -76,9 +76,9 @@ func checkHealthyWithoutCheck(r Rule, p *compose.Project) []Finding {
 				state = "has its healthcheck disabled"
 			}
 			out = append(out, r.finding(d.Loc,
-				fmt.Sprintf("service %q waits for %q to be healthy, but %q %s in Compose", s.Name, d.Service, d.Service, state),
-				fmt.Sprintf("Add a `healthcheck:` to %q. This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline.", d.Service),
-				map[string]string{"service": s.Name, "dependency": d.Service}))
+				fmt.Sprintf("service %q waits for %q to be healthy, but %q %s in Compose", s.Name, d.Shown, d.Shown, state),
+				fmt.Sprintf("Add a `healthcheck:` to %q. This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline.", d.Shown),
+				map[string]string{"service": s.Name, "dependency": d.Shown}))
 		}
 	}
 	return out

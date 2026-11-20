@@ -55,9 +55,9 @@ func checkUndefinedNetworks(r Rule, p *compose.Project) []Finding {
 				continue
 			}
 			out = append(out, r.finding(n.Loc,
-				fmt.Sprintf("service %q joins network %q, which is not declared under top-level networks", s.Name, n.Name),
-				fmt.Sprintf("Declare it (`networks: {%s: {}}`), or mark it `external: true` if it is created outside this project.", n.Name),
-				map[string]string{"service": s.Name, "network": n.Name}))
+				fmt.Sprintf("service %q joins network %q, which is not declared under top-level networks", s.Name, n.Shown),
+				fmt.Sprintf("Declare it (`networks: {%s: {}}`), or mark it `external: true` if it is created outside this project.", n.Shown),
+				map[string]string{"service": s.Name, "network": n.Shown}))
 		}
 	}
 	return out

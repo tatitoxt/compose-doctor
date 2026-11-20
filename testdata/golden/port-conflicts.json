@@ -31,7 +31,7 @@
       "rule_id": "CD301",
       "rule": "host-port-conflict",
       "severity": "error",
-      "message": "services \"metrics\" and \"web\" publish the same host port (tcp): \"${METRICS_PORT:-9090}:9100\" at compose.yaml:21:9 and \"127.0.0.2:9090:80\"",
+      "message": "services \"metrics\" and \"web\" publish the same host port: \"${METRICS_PORT:-9090}:9100\" at compose.yaml:21:9 and \"127.0.0.2:9090:80\"",
       "location": {
         "file": "compose.yaml",
         "line": 11,
@@ -50,7 +50,7 @@
       "rule_id": "CD301",
       "rule": "host-port-conflict",
       "severity": "error",
-      "message": "services \"api\" and \"metrics\" publish the same host port (tcp): \"127.0.0.1:9090:9090\" at compose.yaml:6:9 and \"${METRICS_PORT:-9090}:9100\"",
+      "message": "services \"api\" and \"metrics\" publish the same host port: \"127.0.0.1:9090:9090\" at compose.yaml:6:9 and \"${METRICS_PORT:-9090}:9100\"",
       "location": {
         "file": "compose.yaml",
         "line": 21,

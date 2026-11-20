@@ -239,7 +239,7 @@ func checkPortConflicts(r Rule, p *compose.Project) []Finding {
 	var out []Finding
 	for i, cur := range valid {
 		for _, prev := range valid[:i] {
-			if !Conflicts(prev.binding, cur.binding) {
+			if !Conflicts(prev.binding, cur.binding) || (prev.svc == cur.svc && prev.binding == cur.binding) {
 				continue
 			}
 			who := fmt.Sprintf("services %q and %q", prev.svc.Name, cur.svc.Name)
@@ -248,7 +248,7 @@ func checkPortConflicts(r Rule, p *compose.Project) []Finding {
 			}
 			var msg string
 			if prev.interpolated || cur.interpolated {
-				msg = fmt.Sprintf("%s publish the same host port (%s): %q at %s and %q", who, cur.binding.Protocol, prev.raw, prev.port.Loc, cur.raw)
+				msg = fmt.Sprintf("%s publish the same host port: %q at %s and %q", who, prev.raw, prev.port.Loc, cur.raw)
 			} else {
 				msg = fmt.Sprintf("host port %s/%s is published twice by %s: %q at %s and %q", hostPortText(cur.binding), cur.binding.Protocol, who, prev.raw, prev.port.Loc, cur.raw)
 			}
