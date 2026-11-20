@@ -634,7 +634,7 @@ func (p *Project) mergeDepends(file string, s *Service, n *yaml.Node) {
 		for _, kv := range pairs(n) {
 			d := Dependency{Service: kv.Key.Value, Shown: kv.Key.Value, Required: true, Loc: loc(file, kv.Key)}
 			for _, e := range s.DependsOn {
-				if e.Service == d.Service && !e.Short {
+				if e.Service == d.Service && !e.Short && !hasTag(kv.Val, "!override") {
 					d.Condition, d.Required = e.Condition, e.Required
 				}
 			}
@@ -697,9 +697,13 @@ func (p *Project) loadDotenv(data []byte, environ []string) {
 				val, ok := p.env[name]
 				return val, ok
 			}
-			if expanded, _, err := Interpolate(v, lookup); err == nil {
-				v = expanded
+			expanded, refs, err := Interpolate(v, lookup)
+			if err != nil || len(expanded) > MaxAuxFileSize || failsRequired(refs) {
+				// Leave the variable unset so its uses are reported instead
+				// of silently trusting an empty or runaway value.
+				continue
 			}
+			v = expanded
 		}
 		p.env[e.Key] = v
 	}
@@ -711,4 +715,13 @@ func shownValue(v Value) string {
 		return v.Raw
 	}
 	return v.Value
+}
+
+func failsRequired(refs []VarRef) bool {
+	for _, r := range refs {
+		if r.Problem && r.Required() {
+			return true
+		}
+	}
+	return false
 }

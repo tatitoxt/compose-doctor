@@ -2,6 +2,7 @@ package compose
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -42,5 +43,24 @@ func TestDotenvSingleQuotedIsLiteral(t *testing.T) {
 	p.loadDotenv([]byte("A=1\nB=${A}2\nC='${A}'\n"), []string{"A=9"})
 	if p.env["B"] != "92" || p.env["C"] != "${A}" {
 		t.Errorf("got B=%q C=%q", p.env["B"], p.env["C"])
+	}
+}
+
+func TestDotenvExpansionIsBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("A0=xxxxxxxxxxxxxxxx\n")
+	for i := 1; i <= 30; i++ {
+		fmt.Fprintf(&b, "A%d=$A%d$A%d\n", i, i-1, i-1)
+	}
+	b.WriteString("R=${MISSING:?required}\n")
+	p := &Project{env: map[string]string{}}
+	p.loadDotenv([]byte(b.String()), nil)
+	for k, v := range p.env {
+		if len(v) > MaxAuxFileSize {
+			t.Fatalf("%s expanded to %d bytes", k, len(v))
+		}
+	}
+	if _, ok := p.env["R"]; ok {
+		t.Error("value with an unmet required reference must stay unset")
 	}
 }

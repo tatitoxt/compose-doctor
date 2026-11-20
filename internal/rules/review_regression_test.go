@@ -149,3 +149,26 @@ volumes:
 		t.Errorf("want only CD501 (volume reset, service removed), got %q", got)
 	}
 }
+
+func TestDependencyOverrideRestoresDefaults(t *testing.T) {
+	p := loadFiles(t, map[string]string{
+		"compose.yaml":          "services:\n  web:\n    image: x\n    depends_on: {db: {condition: service_started, required: false}}\n",
+		"compose.override.yaml": "services:\n  web:\n    depends_on:\n      db: !override {condition: service_started}\n",
+	}, nil)
+	if got := ids(Run(p, nil)); !strings.Contains(got, "CD401") {
+		t.Errorf("want CD401 after !override drops required: false, got %q", got)
+	}
+}
+
+func TestDeepAnchorReusedShallowKeepsFields(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("base: &b {image: inherited}\nx0: &a0 {<<: *b}\n")
+	for i := 1; i <= 31; i++ {
+		fmt.Fprintf(&b, "x%d: &a%d {<<: *a%d}\n", i, i, i-1)
+	}
+	b.WriteString("services:\n  shallow:\n    <<: [*a31, *a0]\n")
+	p := loadFiles(t, map[string]string{"compose.yaml": b.String()}, nil)
+	if s := p.Services["shallow"]; s == nil || s.Image == nil {
+		t.Error("shallow service lost its inherited image")
+	}
+}
