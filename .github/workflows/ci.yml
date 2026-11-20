@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.26.11"
+  STATICCHECK_VERSION: "v0.7.0"
+  GOVULNCHECK_VERSION: "v1.8.0"
+
+jobs:
+  lint:
+    name: Lint and vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then echo "$unformatted"; exit 1; fi
+      - name: go mod tidy
+        run: go mod tidy -diff
+      - run: go vet ./...
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION} ./...
+
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Unit and integration (golden) tests
+        run: go test -race -count=1 ./internal/...
+      - name: E2E tests (built binary)
+        run: go test -count=1 -v ./e2e/...
+      - name: Fuzz smoke test
+        run: |
+          go test ./internal/compose -run '^$' -fuzz FuzzInterpolate -fuzztime 10s
+          go test ./internal/compose -run '^$' -fuzz FuzzLoad -fuzztime 10s
+      - name: Demo against the fixture corpus
+        shell: bash
+        run: |
+          go build -trimpath -o bin/compose-doctor ./cmd/compose-doctor
+          ./bin/compose-doctor check testdata/fixtures/valid-complex
+          set +e
+          ./bin/compose-doctor check --strict --format json testdata/fixtures/port-conflicts > report.json
+          code=$?
+          set -e
+          test "$code" -eq 1
+          python3 -c 'import json; r = json.load(open("report.json")); assert r["summary"]["error"] == 4, r["summary"]'
+
+  vuln:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION} ./...
