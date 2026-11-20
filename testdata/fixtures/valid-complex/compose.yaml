@@ -1,0 +1,75 @@
+# A larger, valid project: anchors, merge keys, interpolation with defaults,
+# escapes, healthchecks, profiles, long syntax and an override file.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+
+x-healthcheck: &pg-healthcheck
+  test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+  interval: 5s
+  retries: 5
+
+services:
+  db:
+    <<: *logging
+    image: "postgres:${PG_TAG:-16}"
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    healthcheck: *pg-healthcheck
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [backend]
+
+  api:
+    <<: *logging
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    env_file:
+      - ./config/api.env
+      - path: ./config/api.local.env
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - target: 8000
+        published: "${API_PORT:-8000}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    volumes:
+      - ./config:/app/config:ro
+    networks: [backend, frontend]
+
+  migrate:
+    image: "example/migrate:${MIGRATE_TAG-latest}"
+    command: ["migrate", "--dsn", "postgres://app@db/app"]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+
+  web:
+    image: nginx:1.27
+    ports:
+      - "80"              # ephemeral host port, never a conflict
+      - "127.0.0.1::443"  # ephemeral host port on loopback
+    networks: [frontend]
+
+  adminer:
+    image: adminer:4
+    profiles: [debug]
+    ports: ["8000:8080"]  # same as api, but only with --profile debug
+    networks: [backend]
+
+volumes:
+  pgdata: {}
+
+networks:
+  backend: {}
+  frontend: {}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml",
+    "compose.override.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "host port 8080/tcp is published twice by services \"api\" and \"web\": \"8080:8080\" at compose.yaml:5:9 and \"8080:80\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 10,
+        "column": 9
+      },
+      "evidence": {
+        "other_location": "compose.yaml:5:9",
+        "other_port": "8080:8080",
+        "other_service": "api",
+        "port": "8080:80",
+        "service": "web"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    },
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "services \"metrics\" and \"web\" publish the same host port (tcp): \"${METRICS_PORT:-9090}:9100\" at compose.yaml:21:9 and \"127.0.0.2:9090:80\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 11,
+        "column": 9
+      },
+      "evidence": {
+        "other_location": "compose.yaml:21:9",
+        "other_port": "${METRICS_PORT:-9090}:9100",
+        "other_service": "metrics",
+        "port": "127.0.0.2:9090:80",
+        "service": "web"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    },
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "services \"api\" and \"metrics\" publish the same host port (tcp): \"127.0.0.1:9090:9090\" at compose.yaml:6:9 and \"${METRICS_PORT:-9090}:9100\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 21,
+        "column": 9
+      },
+      "evidence": {
+        "other_location": "compose.yaml:6:9",
+        "other_port": "127.0.0.1:9090:9090",
+        "other_service": "api",
+        "port": "${METRICS_PORT:-9090}:9100",
+        "service": "metrics"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    },
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "host port 53/udp is published twice by services \"dns\" and \"worker\": \"53:53/udp\" at compose.yaml:16:9 and \"53:5353/udp\"",
+      "location": {
+        "file": "compose.override.yaml",
+        "line": 8,
+        "column": 9
+      },
+      "evidence": {
+        "other_location": "compose.yaml:16:9",
+        "other_port": "53:53/udp",
+        "other_service": "dns",
+        "port": "53:5353/udp",
+        "service": "worker"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "error": 4,
+    "warning": 0,
+    "info": 0
+  }
+}

@@ -1,0 +1,6 @@
+exit=3
+
+compose.yaml:1  error    CD001  invalid YAML: did not find expected key
+    hint: Fix the file so it can be read; `docker compose config` shows the same input as Docker Compose sees it. Check indentation (spaces, not tabs), quoting and the selected -f files.
+
+1 finding (1 error, 0 warning, 0 info)

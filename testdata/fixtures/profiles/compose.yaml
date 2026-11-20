@@ -1,0 +1,9 @@
+services:
+  app:
+    image: example/app
+    ports: ["8000:8000"]
+  debug-ui:
+    image: example/debug-ui
+    profiles: [debug]
+    ports: ["8000:8080"]
+    env_file: ./debug.env

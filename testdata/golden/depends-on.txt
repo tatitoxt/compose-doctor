@@ -1,0 +1,15 @@
+exit=0
+Checked compose.yaml
+
+compose.yaml:5:9  info     CD402  service "api" waits only for "db" to start, not to be ready
+    hint: "db" already has a healthcheck: use `depends_on: {db: {condition: service_healthy}}`.
+compose.yaml:6:9  info     CD402  service "api" waits only for "cache" to start, not to be ready
+    hint: Add a healthcheck to "cache" and use the long syntax `depends_on: {cache: {condition: service_healthy}}`, or make "api" retry its connection on start-up.
+compose.yaml:7:9  error    CD401  service "api" depends on undefined service "search"
+    hint: Fix the service name, or load the file that defines it with an extra -f. Use `required: false` if the dependency is optional.
+compose.yaml:11:7  warning  CD403  service "worker" waits for "queue" to be healthy, but "queue" has no healthcheck in Compose
+    hint: Add a `healthcheck:` to "queue". This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline.
+compose.yaml:13:7  info     CD402  service "worker" waits only for "db" to start, not to be ready
+    hint: "db" already has a healthcheck: use `depends_on: {db: {condition: service_healthy}}`.
+
+5 findings (1 error, 1 warning, 3 info)

@@ -1,0 +1,15 @@
+services:
+  api:
+    build: ./backend
+    env_file:
+      - ./config/api.env
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.prod
+    env_file: ./web.env
+    volumes:
+      - ./static:/usr/share/nginx/html:ro
+      - type: bind
+        source: ./certs
+        target: /etc/certs

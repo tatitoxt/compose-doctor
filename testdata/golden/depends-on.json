@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD402",
+      "rule": "depends-on-without-readiness",
+      "severity": "info",
+      "message": "service \"api\" waits only for \"db\" to start, not to be ready",
+      "location": {
+        "file": "compose.yaml",
+        "line": 5,
+        "column": 9
+      },
+      "evidence": {
+        "condition": "service_started",
+        "dependency": "db",
+        "service": "api"
+      },
+      "suggestion": "\"db\" already has a healthcheck: use `depends_on: {db: {condition: service_healthy}}`."
+    },
+    {
+      "rule_id": "CD402",
+      "rule": "depends-on-without-readiness",
+      "severity": "info",
+      "message": "service \"api\" waits only for \"cache\" to start, not to be ready",
+      "location": {
+        "file": "compose.yaml",
+        "line": 6,
+        "column": 9
+      },
+      "evidence": {
+        "condition": "service_started",
+        "dependency": "cache",
+        "service": "api"
+      },
+      "suggestion": "Add a healthcheck to \"cache\" and use the long syntax `depends_on: {cache: {condition: service_healthy}}`, or make \"api\" retry its connection on start-up."
+    },
+    {
+      "rule_id": "CD401",
+      "rule": "depends-on-undefined-service",
+      "severity": "error",
+      "message": "service \"api\" depends on undefined service \"search\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 7,
+        "column": 9
+      },
+      "evidence": {
+        "dependency": "search",
+        "service": "api"
+      },
+      "suggestion": "Fix the service name, or load the file that defines it with an extra -f. Use `required: false` if the dependency is optional."
+    },
+    {
+      "rule_id": "CD403",
+      "rule": "healthy-condition-without-healthcheck",
+      "severity": "warning",
+      "message": "service \"worker\" waits for \"queue\" to be healthy, but \"queue\" has no healthcheck in Compose",
+      "location": {
+        "file": "compose.yaml",
+        "line": 11,
+        "column": 7
+      },
+      "evidence": {
+        "dependency": "queue",
+        "service": "worker"
+      },
+      "suggestion": "Add a `healthcheck:` to \"queue\". This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline."
+    },
+    {
+      "rule_id": "CD402",
+      "rule": "depends-on-without-readiness",
+      "severity": "info",
+      "message": "service \"worker\" waits only for \"db\" to start, not to be ready",
+      "location": {
+        "file": "compose.yaml",
+        "line": 13,
+        "column": 7
+      },
+      "evidence": {
+        "condition": "service_started",
+        "dependency": "db",
+        "service": "worker"
+      },
+      "suggestion": "\"db\" already has a healthcheck: use `depends_on: {db: {condition: service_healthy}}`."
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "error": 1,
+    "warning": 1,
+    "info": 3
+  }
+}

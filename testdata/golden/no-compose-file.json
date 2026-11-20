@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD001",
+      "rule": "invalid-input",
+      "severity": "error",
+      "message": "no Compose file found (looked for compose.yaml, compose.yml, docker-compose.yaml, docker-compose.yml)",
+      "location": {
+        "file": "../../testdata/fixtures/no-compose-file"
+      },
+      "suggestion": "Fix the file so it can be read; `docker compose config` shows the same input as Docker Compose sees it. Check indentation (spaces, not tabs), quoting and the selected -f files."
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "error": 1,
+    "warning": 0,
+    "info": 0
+  }
+}

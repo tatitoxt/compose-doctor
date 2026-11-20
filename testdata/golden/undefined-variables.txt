@@ -1,0 +1,15 @@
+exit=0
+Checked compose.yaml
+
+compose.yaml:3:12  warning  CD201  variable PG_TAG is not set and will be replaced by an empty string
+    hint: PG_TAG is listed in .env.example: copy .env.example to .env and set a local value. If empty is intended, write ${PG_TAG:-} to make it explicit.
+compose.yaml:5:26  error    CD202  required variable DB_PASSWORD is not set; docker compose will refuse to start
+    hint: DB_PASSWORD is listed in .env.example: copy .env.example to .env and set a local value.
+compose.yaml:6:20  warning  CD201  variable DB_NAME is not set and will be replaced by an empty string
+    hint: DB_NAME is listed in .env.example: copy .env.example to .env and set a local value. If empty is intended, write ${DB_NAME:-} to make it explicit.
+compose.yaml:8:12  warning  CD201  variable API_TAG is not set and will be replaced by an empty string (referenced 2 times)
+    hint: API_TAG is declared in env_file "./api.env" of service "api", but env_file only sets the container environment; Compose interpolation reads only the shell environment and the project .env file. Set API_TAG in the project .env file or the shell environment. If empty is intended, write ${API_TAG:-} to make it explicit.
+compose.yaml:12:15  error    CD203  invalid interpolation: unclosed "${"
+    hint: Use ${NAME}, ${NAME:-default} or ${NAME:?error}; write $$ for a literal dollar sign.
+
+5 findings (2 error, 3 warning, 0 info)

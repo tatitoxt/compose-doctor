@@ -1,0 +1,9 @@
+exit=1
+Checked compose.yaml
+
+compose.yaml:8:13  error    CD301  host port 8000/tcp is published twice by services "app" and "debug-ui": "8000:8000" at compose.yaml:4:13 and "8000:8080"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+compose.yaml:9:15  error    CD101  service "debug-ui": env_file "./debug.env" not found
+    hint: Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`.
+
+2 findings (2 error, 0 warning, 0 info)

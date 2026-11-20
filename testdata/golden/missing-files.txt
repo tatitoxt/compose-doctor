@@ -1,0 +1,17 @@
+exit=0
+Checked compose.yaml
+
+compose.yaml:3:12  error    CD102  service "api": build context "./backend" not found
+    hint: Check the path; build contexts are resolved from the project directory.
+compose.yaml:5:9  error    CD101  service "api": env_file "./config/api.env" not found
+    hint: Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`.
+compose.yaml:9:19  error    CD102  service "web": dockerfile "Dockerfile.prod" not found in build context "./web"
+    hint: `dockerfile` is resolved relative to the build context, not to the Compose file.
+compose.yaml:10:15  error    CD101  service "web": env_file "./web.env" not found
+    hint: A template exists: copy "./web.env.example" to "./web.env" and fill in local values. Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`.
+compose.yaml:12:9  warning  CD103  service "web": bind mount source "./static" does not exist
+    hint: Docker creates a missing short-syntax bind source as an empty, root-owned directory, which usually hides a typo. Create the path or fix the name.
+compose.yaml:14:17  warning  CD103  service "web": bind mount source "./certs" does not exist
+    hint: With the long volume syntax Docker Compose fails with "bind source path does not exist". Create the path or fix the name.
+
+6 findings (4 error, 2 warning, 0 info)

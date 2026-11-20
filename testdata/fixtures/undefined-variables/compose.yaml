@@ -1,0 +1,12 @@
+services:
+  db:
+    image: "postgres:${PG_TAG}"
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      POSTGRES_DB: $DB_NAME
+  api:
+    image: "example/api:${API_TAG}"
+    env_file: ./api.env
+    command: ["serve", "--tag", "$API_TAG", "--price", "$$5"]
+    environment:
+      BROKEN: "${UNCLOSED"
