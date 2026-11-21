@@ -5,6 +5,10 @@
 
 Offline CLI that diagnoses Docker Compose projects before you start the stack.
 
+<p align="center">
+  <img src="docs/demo.svg" width="880" alt="compose-doctor diagnosing a project in 2 ms">
+</p>
+
 ## Problem
 
 Many Compose failures are only discovered at `docker compose up` time, or
