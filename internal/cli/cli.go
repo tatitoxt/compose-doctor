@@ -107,6 +107,40 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 	if suppressed > 0 {
 		fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by inline directives\n", suppressed)
 	}
+	baselinePath := opts.BaselinePath
+	if baselinePath == "" {
+		candidate := filepath.Join(project.Dir, rules.BaselineFileName)
+		if _, err := os.Stat(candidate); err == nil {
+			baselinePath = candidate
+		}
+	}
+	if opts.WriteBaseline {
+		target := baselinePath
+		if target == "" {
+			target = filepath.Join(project.Dir, rules.BaselineFileName)
+		}
+		if err := rules.WriteBaseline(target, findings); err != nil {
+			fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
+			return ExitInvalidInput
+		}
+		fmt.Fprintf(stderr, "compose-doctor: recorded %d finding(s) to %s\n", len(findings), target)
+		return ExitOK
+	}
+	if baselinePath != "" {
+		entries, err := rules.LoadBaseline(baselinePath)
+		if err != nil {
+			fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
+			return ExitInvalidInput
+		}
+		if stale := rules.StaleEntries(entries, findings); len(stale) > 0 {
+			fmt.Fprintf(stderr, "compose-doctor: %d baseline entries no longer match — they can be pruned:\n%s", len(stale), rules.FormatStale(stale))
+		}
+		var n int
+		findings, n = rules.ApplyBaseline(findings, entries)
+		if n > 0 {
+			fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by baseline\n", n)
+		}
+	}
 	if err := write(stdout, opts.Format, report.New(Version, project.Files, project.ActiveProfiles, findings)); err != nil {
 		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
 		return ExitInvalidInput

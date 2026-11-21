@@ -26,6 +26,10 @@ type Check struct {
 	Advisory bool
 	// ConfigPath is the --config rules file (empty = auto-detect).
 	ConfigPath string
+	// BaselinePath is the --baseline file (empty = auto-detect).
+	BaselinePath string
+	// WriteBaseline snapshots current findings to the baseline file.
+	WriteBaseline bool
 	// Severities holds per-rule severity overrides from the rules file.
 	Severities map[string]rules.Severity
 }
@@ -58,6 +62,8 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 	fs.BoolVar(&c.IgnoreOSEnv, "ignore-os-env", false, "do not read variables from the process environment")
 	fs.BoolVar(&c.Advisory, "advisory", false, "also run advisory rules (CD6xx: restart policy, resource limits, image pinning)")
 	fs.StringVar(&c.ConfigPath, "config", "", "per-project rules file (default: <project>/"+RulesFileName+" when present)")
+	fs.StringVar(&c.BaselinePath, "baseline", "", "suppress findings recorded in this baseline file (default: <project>/"+rules.BaselineFileName+" when present)")
+	fs.BoolVar(&c.WriteBaseline, "write-baseline", false, "record the current findings to the baseline file and exit")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: compose-doctor check [flags] [path]")
 		fmt.Fprintln(stderr, "\nDiagnoses a Docker Compose project offline. path is a directory (default \".\") or a Compose file.")

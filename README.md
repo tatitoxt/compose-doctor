@@ -44,6 +44,11 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   next entry), a bare `# compose-doctor:ignore` (all rules on that line)
   and `# compose-doctor:ignore-file` (the whole file). Suppressed findings
   are counted on stderr.
+- Baseline files adopt legacy projects: `check --write-baseline` records the
+  current findings to `compose-doctor-baseline.json` (or `--baseline PATH`);
+  later runs suppress findings matching rule + file + message (line drift is
+  tolerated), while new violations still surface. Entries that stop matching
+  are reported for pruning.
 - Per-project tuning: `compose-doctor.json` beside the Compose file
   re-severities or disables rules (`{"severity": {"CD402": "off",
   "CD102": "info"}}`). `--config` points elsewhere; `--disable` unions
@@ -138,6 +143,9 @@ compose-doctor check [flags] [path]   path: project directory (default ".") or a
   --fail-on SEVERITY     info, warning or error (default warning)
   --disable IDS          comma-separated rule IDs to skip, repeatable
   --config FILE          per-project rules file (default: <project>/compose-doctor.json)
+  --baseline FILE        suppress findings recorded in the baseline (default:
+                         <project>/compose-doctor-baseline.json when present)
+  --write-baseline       record current findings to the baseline file and exit
 compose-doctor rules [--format json]
 compose-doctor version
 ```
@@ -288,7 +296,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 ## Roadmap
 
-- A baseline file to suppress pre-existing findings in legacy projects.
 - `x-*` extension and `watch`/`develop` section awareness.
 
 ## License

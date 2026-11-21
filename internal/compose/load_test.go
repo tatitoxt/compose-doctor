@@ -203,7 +203,7 @@ func TestSplitShortVolume(t *testing.T) {
 
 func TestIncludeMergesFilesBeforeTheParent(t *testing.T) {
 	dir := writeTree(t, map[string]string{
-		"compose.yaml": "include:\n  - sub/extra.yaml\nservices:\n  web:\n    image: nginx\n",
+		"compose.yaml":   "include:\n  - sub/extra.yaml\nservices:\n  web:\n    image: nginx\n",
 		"sub/extra.yaml": "services:\n  cache:\n    image: redis\nvolumes:\n  data:\nnetworks:\n  back:\n",
 	})
 	p := mustLoad(t, Options{Path: dir})

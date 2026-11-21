@@ -383,3 +383,48 @@ services:
 		t.Fatalf("ignore-file left findings: %v", ruleIDs(r))
 	}
 }
+
+func TestBaselineFile(t *testing.T) {
+	dir := t.TempDir()
+	body := `services:
+  api:
+    image: example/api
+    ports:
+      - "8080:8080"
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"
+`
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Snapshot the conflict, then a plain run reports nothing new.
+	res := cli(t, dir, nil, "check", "--write-baseline")
+	if res.code != 0 || !strings.Contains(res.stderr, "recorded 1 finding") {
+		t.Fatalf("write-baseline: %+v", res)
+	}
+	res = cli(t, dir, nil, "check", "--format", "json")
+	if r := decode(t, res.stdout); len(r.Findings) != 0 {
+		t.Fatalf("baseline left findings: %v", ruleIDs(r))
+	}
+	if !strings.Contains(res.stderr, "1 finding(s) suppressed by baseline") {
+		t.Errorf("stderr lacks baseline note: %q", res.stderr)
+	}
+
+	// A new violation on top of the baseline is still reported.
+	newBody := body + `  extra:
+    image: example/extra
+    ports:
+      - "8080:8000"
+`
+	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(newBody), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res = cli(t, dir, nil, "check", "--format", "json")
+	r := decode(t, res.stdout)
+	if len(r.Findings) != 1 || r.Findings[0].RuleID != "CD301" {
+		t.Fatalf("new violation not reported: %v", ruleIDs(r))
+	}
+}
