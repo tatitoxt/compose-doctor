@@ -46,7 +46,7 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 	fs.Var(&profiles, "profile", "enable a profile (repeatable; \"*\" enables all)")
 	fs.Var(&disable, "disable", "comma-separated rule IDs to skip (repeatable)")
 	fs.StringVar(&c.EnvFile, "env-file", "", "env file used for interpolation instead of <project>/.env")
-	fs.StringVar(&c.Format, "format", "human", "output format: human or json")
+	fs.StringVar(&c.Format, "format", "human", "output format: human, json or sarif")
 	fs.BoolVar(&c.Strict, "strict", false, "exit 1 when a finding at or above --fail-on is reported")
 	failOn := fs.String("fail-on", "warning", "minimum severity that fails --strict: info, warning or error")
 	fs.BoolVar(&c.IgnoreOSEnv, "ignore-os-env", false, "do not read variables from the process environment")
@@ -77,8 +77,8 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 		c.Path = positional[0]
 	}
 	c.Files, c.Profiles = files, profiles
-	if c.Format != "human" && c.Format != "json" {
-		return c, fmt.Errorf("invalid --format %q (want human or json)", c.Format)
+	if c.Format != "human" && c.Format != "json" && c.Format != "sarif" {
+		return c, fmt.Errorf("invalid --format %q (want human, json or sarif)", c.Format)
 	}
 	sev, err := rules.ParseSeverity(*failOn)
 	if err != nil {

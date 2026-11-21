@@ -250,6 +250,73 @@ func TestHumanOutputNamesFileLineRuleAndHint(t *testing.T) {
 	}
 }
 
+func TestSARIFOutputMatchesJSONFindings(t *testing.T) {
+	dir := copyFixture(t, "missing-files")
+	res := cli(t, dir, nil, "check", "--format", "sarif")
+	if res.code != 0 {
+		t.Fatalf("exit %d\nstderr: %s", res.code, res.stderr)
+	}
+	var log struct {
+		Version string `json:"version"`
+		Runs    []struct {
+			Tool struct {
+				Driver struct {
+					Rules []struct {
+						ID string `json:"id"`
+					} `json:"rules"`
+				} `json:"driver"`
+			} `json:"tool"`
+			Results []struct {
+				RuleID    string `json:"ruleId"`
+				Level     string `json:"level"`
+				Locations []struct {
+					PhysicalLocation struct {
+						ArtifactLocation struct {
+							URI string `json:"uri"`
+						} `json:"artifactLocation"`
+						Region struct {
+							StartLine int `json:"startLine"`
+						} `json:"region"`
+					} `json:"physicalLocation"`
+				} `json:"locations"`
+			} `json:"results"`
+		} `json:"runs"`
+	}
+	if err := json.Unmarshal([]byte(res.stdout), &log); err != nil {
+		t.Fatalf("sarif output is not JSON: %v\n%s", err, res.stdout)
+	}
+	if log.Version != "2.1.0" || len(log.Runs) != 1 || len(log.Runs[0].Tool.Driver.Rules) == 0 {
+		t.Fatalf("bad SARIF envelope: %+v", log)
+	}
+	catalog := map[string]bool{}
+	for _, r := range log.Runs[0].Tool.Driver.Rules {
+		catalog[r.ID] = true
+	}
+	if len(log.Runs[0].Results) != 6 {
+		t.Fatalf("results %d, want 6", len(log.Runs[0].Results))
+	}
+	for _, r := range log.Runs[0].Results {
+		if !catalog[r.RuleID] {
+			t.Errorf("result %s is not in the driver rule catalog", r.RuleID)
+		}
+		switch r.Level {
+		case "error", "warning", "note":
+		default:
+			t.Errorf("bad SARIF level %q", r.Level)
+		}
+		if len(r.Locations) != 1 || r.Locations[0].PhysicalLocation.ArtifactLocation.URI == "" {
+			t.Errorf("result %s lacks a physical location", r.RuleID)
+		}
+		if r.Locations[0].PhysicalLocation.Region.StartLine <= 0 {
+			t.Errorf("result %s lacks a start line", r.RuleID)
+		}
+	}
+	// Strict mode honours SARIF output too.
+	if res := cli(t, dir, nil, "check", "--format", "sarif", "--strict"); res.code != 1 {
+		t.Errorf("strict sarif: exit %d, want 1", res.code)
+	}
+}
+
 func TestUsageErrors(t *testing.T) {
 	dir := t.TempDir()
 	for _, args := range [][]string{{}, {"frobnicate"}, {"check", "--format", "yaml"}, {"check", "--fail-on", "fatal"}, {"check", "a", "b"}} {

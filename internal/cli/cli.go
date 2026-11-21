@@ -101,8 +101,11 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 }
 
 func write(w io.Writer, format string, r report.Report) error {
-	if format == "json" {
+	switch format {
+	case "json":
 		return report.JSON(w, r)
+	case "sarif":
+		return report.SARIF(w, r)
 	}
 	return report.Human(w, r)
 }

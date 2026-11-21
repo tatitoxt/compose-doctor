@@ -29,8 +29,9 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   `${VAR:?err}`, `${VAR?err}`, `${VAR:+alt}`, `${VAR+alt}`, nested defaults
   and `$$` escapes, from the shell environment and the project `.env`
   (or `--env-file`).
-- Runs 17 rules (table below) and reports findings in human-readable text or
-  JSON (`--format json`, schema version 1), sorted deterministically.
+- Runs 17 rules (table below) and reports findings in human-readable text,
+  JSON (`--format json`, schema version 1) or SARIF 2.1.0
+  (`--format sarif`) for code-scanning integrations, sorted deterministically.
 - `--strict` turns findings at or above `--fail-on` (default `warning`) into
   exit code 1; `--disable CD402,...` skips rules.
 - Never prints variable values: only names, paths and the raw text of the
@@ -116,7 +117,7 @@ compose-doctor check [flags] [path]   path: project directory (default ".") or a
   --profile NAME         enable a profile, repeatable ("*" enables all)
   --env-file FILE        env file for interpolation instead of <project>/.env
   --ignore-os-env        do not read variables from the process environment
-  --format human|json    output format (default human)
+  --format human|json|sarif   output format (default human)
   --strict               exit 1 when a finding at or above --fail-on is reported
   --fail-on SEVERITY     info, warning or error (default warning)
   --disable IDS          comma-separated rule IDs to skip, repeatable
@@ -157,6 +158,17 @@ compose-doctor version
 
 `findings`, `files` and `profiles` are always arrays; `evidence` is omitted
 when empty. Paths are relative to the project directory.
+
+### SARIF output
+
+`--format sarif` emits a single SARIF 2.1.0 run: the driver catalog lists
+every rule (id, name, summary, default level, link to
+[docs/rules.md](docs/rules.md)) and each finding becomes a `result` with its
+`ruleId`, SARIF `level` (`error`/`warning`/`note`), message plus suggestion,
+and a `physicalLocation` (`artifactLocation.uri`, `region.startLine`/column
+when known). Upload it with `github/codeql-action/upload-sarif` or any
+SARIF viewer. Exit codes are unchanged, so `--strict --format sarif` still
+fails the job after writing the log.
 
 ## Architecture
 
@@ -231,8 +243,8 @@ macOS, with `-race`, plus staticcheck and govulncheck.
   `testdata/golden/invalid-yaml.txt`).
 - CI runs on Linux and macOS only; Windows paths are handled in code
   (`SplitShortVolume` drive letters) but not tested on Windows.
-- No `--fix`, no configuration file, no SARIF output and no published release
-  binaries yet; build from source.
+- No `--fix`, no configuration file and no published release binaries yet;
+  build from source.
 - The rule set is small and opinionated; severities reflect the author's
   judgement documented in docs/rules.md, not measured false-positive rates.
 
@@ -241,7 +253,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 - Release binaries with checksums (GoReleaser) and a GitHub Action wrapper.
 - Windows in the CI matrix.
 - Resolve `include:` and `extends:`.
-- SARIF output for code-scanning integrations.
 - Config file for per-project rule severities and ignores.
 - Advisory rules for `restart` policies and resource limits.
 
