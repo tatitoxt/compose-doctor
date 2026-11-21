@@ -24,7 +24,11 @@ func TestFileRules(t *testing.T) {
 			want: []string{"CD102@compose.yaml:4"}},
 		{name: "missing default Dockerfile", files: map[string]string{"compose.yaml": "services:\n  api:\n    build: ./api\n", "api/main.go": ""},
 			want: []string{"CD102@compose.yaml:3"}},
-		{name: "containerfile accepted", files: map[string]string{"compose.yaml": "services:\n  api:\n    build: ./api\n", "api/Containerfile": ""}},
+		{name: "containerfile alone is not the default", files: map[string]string{"compose.yaml": "services:\n  api:\n    build: ./api\n", "api/Containerfile": ""},
+			want: []string{"CD102@compose.yaml:3"}},
+		{name: "containerfile via dockerfile key accepted", files: map[string]string{
+			"compose.yaml":      "services:\n  api:\n    build:\n      context: ./api\n      dockerfile: Containerfile\n",
+			"api/Containerfile": ""}},
 		{name: "custom dockerfile relative to context", files: map[string]string{
 			"compose.yaml":              "services:\n  api:\n    build:\n      context: ./api\n      dockerfile: docker/Dockerfile.dev\n  web:\n    build:\n      context: ./api\n      dockerfile: Dockerfile.prod\n",
 			"api/docker/Dockerfile.dev": ""},

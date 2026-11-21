@@ -109,11 +109,10 @@ func checkBuild(r Rule, p *compose.Project) []Finding {
 			continue
 		}
 		okD, dirD := stat(p, ctx+"/Dockerfile")
-		okC, dirC := stat(p, ctx+"/Containerfile")
-		if (!okD || dirD) && (!okC || dirC) {
+		if !okD || dirD {
 			out = append(out, r.finding(b.Loc,
 				fmt.Sprintf("service %q: no Dockerfile in build context %s", s.Name, quote(shown(b.Context))),
-				"Add a Dockerfile to the context, set `build.dockerfile`, or use `build.dockerfile_inline`.",
+				"Docker Compose defaults to `Dockerfile` — a lone `Containerfile` is not used unless `build.dockerfile` names it. Add a Dockerfile, set `build.dockerfile`, or use `build.dockerfile_inline`.",
 				map[string]string{"service": s.Name, "context": shown(b.Context)}))
 		}
 	}
