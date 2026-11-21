@@ -24,7 +24,8 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   `docker-compose.yml` discovery plus the `*.override.yaml` file, or
   explicit repeated `-f` files merged in order; YAML anchors, aliases and
   merge keys (`<<`); `!reset` / `!override` tags; profiles (`--profile`,
-  `COMPOSE_PROFILES`).
+  `COMPOSE_PROFILES`); `include:` (merged before the including file) and
+  service-level `extends:` across files, both with cycle detection.
 - Interpolates `$VAR`, `${VAR}`, `${VAR:-default}`, `${VAR-default}`,
   `${VAR:?err}`, `${VAR?err}`, `${VAR:+alt}`, `${VAR+alt}`, nested defaults
   and `$$` escapes, from the shell environment and the project `.env`
@@ -238,8 +239,11 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 - Not a schema validator: unknown keys are ignored and only the fields used by
   the rules are modelled. Run `docker compose config` for full validation.
-- `include:` and `extends:` are not resolved; services using `extends` are
-  not checked for a missing image/build.
+- `include:` and `extends:` are resolved as Docker Compose does (include
+  merges before the parent file; extends inherits service fields, with
+  cycle detection). Files under `include:` or `extends: file:` are still
+  scanned only for the keys they contribute to the project — not linted
+  as standalone projects.
 - Image metadata is not available offline: a Dockerfile `HEALTHCHECK` is
   invisible (hence CD403 is a warning), and ports already in use on the host
   are not detected.
@@ -258,7 +262,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 - Release binaries with checksums (GoReleaser) and a GitHub Action wrapper.
 - Windows in the CI matrix.
-- Resolve `include:` and `extends:`.
 - Advisory rules for `restart` policies and resource limits.
 
 ## License

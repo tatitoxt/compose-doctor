@@ -1,6 +1,7 @@
 package compose
 
 import (
+	"gopkg.in/yaml.v3"
 	"sort"
 	"strings"
 )
@@ -152,6 +153,11 @@ type Project struct {
 
 	env        map[string]string
 	envExample map[string]bool
+
+	// Load bookkeeping: parsed YAML roots by abs path (used by extends)
+	// and display-path -> abs-path for the file being merged.
+	parsed map[string]*yaml.Node
+	absOf  map[string]string
 }
 
 // LookupEnv reports whether an interpolation variable is set. The value is

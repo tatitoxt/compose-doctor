@@ -200,3 +200,88 @@ func TestSplitShortVolume(t *testing.T) {
 		}
 	}
 }
+
+func TestIncludeMergesFilesBeforeTheParent(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"compose.yaml": "include:\n  - sub/extra.yaml\nservices:\n  web:\n    image: nginx\n",
+		"sub/extra.yaml": "services:\n  cache:\n    image: redis\nvolumes:\n  data:\nnetworks:\n  back:\n",
+	})
+	p := mustLoad(t, Options{Path: dir})
+	if p.Services["cache"] == nil || p.Services["cache"].Image == nil || p.Services["cache"].Image.Value != "redis" {
+		t.Fatalf("included service not merged: %+v", p.Services["cache"])
+	}
+	if _, ok := p.Volumes["data"]; !ok {
+		t.Fatal("included top-level volumes not merged")
+	}
+	if _, ok := p.Networks["back"]; !ok {
+		t.Fatal("included top-level networks not merged")
+	}
+	// The included file is listed before the parent.
+	if len(p.Files) != 2 || p.Files[0] != "sub/extra.yaml" || p.Files[1] != "compose.yaml" {
+		t.Fatalf("files = %v", p.Files)
+	}
+}
+
+func TestIncludeObjectAndListFormsAndCycles(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"compose.yaml": "include:\n  - {path: [a.yaml]}\nservices:\n  web:\n    image: nginx\n",
+		"a.yaml":       "include: [b.yaml]\nservices:\n  one:\n    image: alpine\n",
+		"b.yaml":       "include: [a.yaml]\nservices:\n  two:\n    image: busybox\n",
+	})
+	if _, err := Load(Options{Path: dir}); err == nil || !strings.Contains(err.Error(), "circular include") {
+		t.Fatalf("expected circular include error, got %v", err)
+	}
+
+	dir2 := writeTree(t, map[string]string{
+		"compose.yaml": "include:\n  - {path: a.yaml}\n  - b.yaml\nservices:\n  web:\n    image: nginx\n",
+		"a.yaml":       "services:\n  one:\n    image: alpine\n",
+		"b.yaml":       "services:\n  two:\n    image: busybox\n",
+	})
+	p := mustLoad(t, Options{Path: dir2})
+	if len(p.Services) != 3 {
+		t.Fatalf("services = %v", p.ServiceNames())
+	}
+}
+
+func TestExtendsFromAnotherFile(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"compose.yaml": "services:\n  api:\n    extends: {file: base.yaml, service: base-api}\n    environment:\n      PORT: '8080'\n",
+		"base.yaml":    "services:\n  base-api:\n    image: ghcr.io/x/api:1.0\n    ports: ['8080:8080']\n    environment:\n      LOG: info\n",
+	})
+	p := mustLoad(t, Options{Path: dir})
+	s := p.Services["api"]
+	if s == nil || s.Image == nil || s.Image.Value != "ghcr.io/x/api:1.0" {
+		t.Fatalf("extended image = %+v", s.Image)
+	}
+	if len(s.Ports) != 1 || s.Ports[0].Short == nil || s.Ports[0].Short.Value != "8080:8080" {
+		t.Fatalf("extended ports = %+v", s.Ports)
+	}
+}
+
+func TestExtendsSameFileAndChained(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"compose.yaml": "services:\n  base:\n    image: alpine\n  mid:\n    extends: base\n    environment:\n      A: '1'\n  leaf:\n    extends: {service: mid}\n    environment:\n      B: '2'\n",
+	})
+	p := mustLoad(t, Options{Path: dir})
+	leaf := p.Services["leaf"]
+	if leaf == nil || leaf.Image == nil || leaf.Image.Value != "alpine" {
+		t.Fatalf("chained extends: %+v", leaf)
+	}
+	if !leaf.Extends {
+		t.Fatal("chained extends flag not set")
+	}
+}
+
+func TestExtendsErrors(t *testing.T) {
+	for name, files := range map[string]map[string]string{
+		"missing service": {"compose.yaml": "services:\n  api:\n    extends: {service: nope}\n"},
+		"missing file":    {"compose.yaml": "services:\n  api:\n    extends: {file: nope.yaml, service: x}\n"},
+		"cycle":           {"compose.yaml": "services:\n  a:\n    extends: b\n    image: alpine\n  b:\n    extends: a\n    image: alpine\n"},
+		"no service name": {"compose.yaml": "services:\n  a:\n    extends: {file: base.yaml}\n", "base.yaml": "services:\n  x:\n    image: alpine\n"},
+	} {
+		dir := writeTree(t, files)
+		if _, err := Load(Options{Path: dir}); err == nil {
+			t.Fatalf("%s: expected load error", name)
+		}
+	}
+}

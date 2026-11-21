@@ -60,23 +60,102 @@ func Load(opts Options) (*Project, error) {
 			}
 		}
 	}
+	parsed := map[string]*yaml.Node{}
+	p.parsed = parsed
+	loading := map[string]bool{}
 	for _, f := range files {
-		disp := p.Display(f)
-		data, err := readRegularFile(f, MaxComposeFileSize)
-		if err != nil {
-			return nil, &LoadError{Loc: Location{File: disp}, Msg: "cannot read file: " + describeErr(err)}
-		}
-		root, err := parseYAML(disp, data)
-		if err != nil {
-			return nil, err
-		}
-		p.Files = append(p.Files, disp)
-		p.scan(disp, root, "")
-		if err := p.mergeFile(disp, root); err != nil {
+		if err := p.loadFile(f, parsed, loading); err != nil {
 			return nil, err
 		}
 	}
 	return p, nil
+}
+
+// loadFile parses one Compose file, resolves its `include:` entries (merged
+// before the including file, per the Compose spec) and merges the file into
+// the project. `loading` detects include cycles.
+func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[string]bool) error {
+	disp := p.Display(f)
+	if loading[f] {
+		return &LoadError{Loc: Location{File: disp}, Msg: "circular include"}
+	}
+	if _, done := parsed[f]; done {
+		return nil // already merged through another include
+	}
+	data, err := readRegularFile(f, MaxComposeFileSize)
+	if err != nil {
+		return &LoadError{Loc: Location{File: disp}, Msg: "cannot read file: " + describeErr(err)}
+	}
+	root, err := parseYAML(disp, data)
+	if err != nil {
+		return err
+	}
+	parsed[f] = root
+	if p.absOf == nil {
+		p.absOf = map[string]string{}
+	}
+	p.absOf[disp] = f
+	loading[f] = true
+	defer delete(loading, f)
+
+	for _, inc := range includePaths(root) {
+		target := inc
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(f), target)
+		}
+		target = filepath.Clean(target)
+		if err := p.loadFile(target, parsed, loading); err != nil {
+			return err
+		}
+	}
+
+	p.Files = append(p.Files, disp)
+	p.scan(disp, root, "")
+	return p.mergeFile(disp, root)
+}
+
+// includePaths extracts the paths of a top-level `include:` list. Entries are
+// either plain paths or objects with a `path` key (string or list).
+func includePaths(root *yaml.Node) []string {
+	var out []string
+	for _, kv := range pairs(root) {
+		if kv.Key.Value != "include" {
+			continue
+		}
+		val := resolve(kv.Val)
+		if val == nil {
+			continue
+		}
+		for _, item := range items(val) {
+			item = resolve(item)
+			if item == nil {
+				continue
+			}
+			if item.Kind == yaml.ScalarNode {
+				out = append(out, item.Value)
+				continue
+			}
+			for _, e := range pairs(item) {
+				if e.Key.Value != "path" {
+					continue
+				}
+				v := resolve(e.Val)
+				if v == nil {
+					continue
+				}
+				if v.Kind == yaml.ScalarNode {
+					out = append(out, v.Value)
+					continue
+				}
+				for _, pth := range items(v) {
+					if pth = resolve(pth); pth != nil && pth.Kind == yaml.ScalarNode {
+						out = append(out, pth.Value)
+					}
+				}
+			}
+		}
+	}
+	return out
 }
 
 func describeErr(err error) string {
@@ -329,7 +408,9 @@ func (p *Project) mergeFile(file string, root *yaml.Node) error {
 				if hasTag(s.Val, "!override") {
 					delete(p.Services, s.Key.Value)
 				}
-				p.mergeService(file, s.Key, resolve(s.Val))
+				if err := p.mergeService(file, s.Key, resolve(s.Val), val, map[string]bool{}); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -340,13 +421,121 @@ func hasTag(n *yaml.Node, tag string) bool {
 	return n != nil && (n.Tag == tag || (resolve(n) != nil && resolve(n).Tag == tag))
 }
 
-func (p *Project) mergeService(file string, key, n *yaml.Node) {
+// mergeService merges one service definition. `extends` is resolved first:
+// the base service's fields are applied, then this file's fields override
+// them. `siblings` is the services mapping of the file being merged (for
+// same-file extends); `chain` detects extends cycles.
+func (p *Project) mergeService(file string, key, n *yaml.Node, siblings *yaml.Node, chain map[string]bool) error {
 	name := key.Value
 	s, ok := p.Services[name]
 	if !ok {
 		s = &Service{Name: name, Loc: loc(file, key)}
 		p.Services[name] = s
 	}
+	bases, err := p.resolveExtends(file, n, siblings, chain)
+	if err != nil {
+		return err
+	}
+	for _, b := range bases {
+		s.Extends = true
+		p.applyServicePairs(b.file, s, b.node)
+	}
+	p.applyServicePairs(file, s, n)
+	return nil
+}
+
+type extNode struct {
+	file string
+	node *yaml.Node
+}
+
+// resolveExtends returns the base service nodes for an `extends:` value,
+// ordered base-first so later entries override earlier ones.
+func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node, chain map[string]bool) ([]extNode, error) {
+	for _, kv := range pairs(n) {
+		if kv.Key.Value != "extends" {
+			continue
+		}
+		v := resolve(kv.Val)
+		var refFile, refService string
+		if v != nil && v.Kind == yaml.ScalarNode {
+			refService = v.Value
+		} else {
+			for _, e := range pairs(v) {
+				ev := resolve(e.Val)
+				switch e.Key.Value {
+				case "service":
+					if ev != nil && ev.Kind == yaml.ScalarNode {
+						refService = ev.Value
+					}
+				case "file":
+					if ev != nil && ev.Kind == yaml.ScalarNode {
+						refFile = ev.Value
+					}
+				}
+			}
+		}
+		if refService == "" {
+			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: "`extends` requires a `service` name"}
+		}
+		baseFile := file
+		var services *yaml.Node
+		if refFile == "" {
+			services = siblings
+		} else {
+			abs := p.absOf[file]
+			target := refFile
+			if !filepath.IsAbs(target) {
+				target = filepath.Join(filepath.Dir(abs), target)
+			}
+			target = filepath.Clean(target)
+			root, ok := p.parsed[target]
+			if !ok {
+				data, err := readRegularFile(target, MaxComposeFileSize)
+				if err != nil {
+					return nil, &LoadError{Loc: loc(file, kv.Key), Msg: "extends file: " + describeErr(err)}
+				}
+				if root, err = parseYAML(filepath.ToSlash(refFile), data); err != nil {
+					return nil, err
+				}
+				p.parsed[target] = root
+			}
+			baseFile = p.Display(target)
+			for _, kv2 := range pairs(root) {
+				if kv2.Key.Value == "services" {
+					services = resolve(kv2.Val)
+				}
+			}
+		}
+		if services == nil {
+			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: "extends file has no services"}
+		}
+		var base *yaml.Node
+		for _, sv := range pairs(services) {
+			if sv.Key.Value == refService {
+				base = resolve(sv.Val)
+				break
+			}
+		}
+		if base == nil {
+			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: fmt.Sprintf("extends: service %q not found in %s", refService, baseFile)}
+		}
+		ck := baseFile + "#" + refService
+		if chain[ck] {
+			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: fmt.Sprintf("circular extends involving %q", refService)}
+		}
+		chain[ck] = true
+		defer delete(chain, ck)
+		inner, err := p.resolveExtends(baseFile, base, services, chain)
+		if err != nil {
+			return nil, err
+		}
+		return append(inner, extNode{file: baseFile, node: base}), nil
+	}
+	return nil, nil
+}
+
+func (p *Project) applyServicePairs(file string, s *Service, n *yaml.Node) {
 	for _, kv := range pairs(n) {
 		k, raw := kv.Key.Value, kv.Val
 		v := resolve(raw)

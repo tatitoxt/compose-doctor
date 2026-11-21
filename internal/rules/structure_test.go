@@ -8,7 +8,7 @@ func TestStructureRules(t *testing.T) {
 		{name: "no image or build", files: map[string]string{"compose.yaml": "services:\n  web:\n    ports: [\"80\"]\n  ok:\n    build: .\n"},
 			want: []string{"CD002@compose.yaml:2"}},
 		{name: "null service", files: map[string]string{"compose.yaml": "services:\n  web:\n"}, want: []string{"CD002@compose.yaml:2"}},
-		{name: "extends is not flagged", files: map[string]string{"compose.yaml": "services:\n  web:\n    extends: {file: base.yaml, service: web}\n"}},
+		{name: "extends is not flagged", files: map[string]string{"compose.yaml": "services:\n  web:\n    extends: {file: base.yaml, service: web}\n", "base.yaml": "services:\n  web:\n    image: nginx\n"}},
 		{name: "inactive profile not flagged", files: map[string]string{"compose.yaml": "services:\n  dbg:\n    profiles: [debug]\n"}},
 		{name: "image from override", files: map[string]string{
 			"compose.yaml": "services:\n  web: {}\n", "compose.override.yaml": "services:\n  web: {image: nginx}\n"}},
