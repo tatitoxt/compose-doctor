@@ -6,7 +6,7 @@ import (
 )
 
 func TestFileRules(t *testing.T) {
-	runCases(t, []string{"CD101", "CD102", "CD103"}, []ruleCase{
+	runCases(t, []string{"CD101", "CD102", "CD103", "CD104"}, []ruleCase{
 		{name: "all present", files: map[string]string{
 			"compose.yaml":   "services:\n  api:\n    build: ./api\n    env_file: [./api.env]\n    volumes: [\"./data:/data\", \"/abs/elsewhere:/x\"]\n",
 			"api/Dockerfile": "FROM scratch\n", "api.env": "A=1\n", "data/": ""}},
@@ -38,6 +38,12 @@ func TestFileRules(t *testing.T) {
 		{name: "missing relative bind short and long", files: map[string]string{
 			"compose.yaml": "services:\n  api:\n    image: x\n    volumes:\n      - ./conf:/etc/conf:ro\n      - type: bind\n        source: ../shared\n        target: /shared\n      - data:/data\n      - /var/run/docker.sock:/var/run/docker.sock\nvolumes:\n  data: {}\n"},
 			want: []string{"CD103@compose.yaml:5", "CD103@compose.yaml:7"}},
+		{name: "watch path missing and present", files: map[string]string{
+			"compose.yaml": "services:\n  api:\n    image: x\n    develop:\n      watch:\n        - path: ./src\n          action: sync\n          target: /app/src\n        - path: ./missing\n          action: rebuild\n        - path: /abs/skip\n          action: sync\n",
+			"src/main.go":  ""},
+			want: []string{"CD104@compose.yaml:9"}},
+		{name: "watch path unresolved variable skipped", files: map[string]string{
+			"compose.yaml": "services:\n  api:\n    image: x\n    develop:\n      watch:\n        - path: ./${SRC_DIR}\n          action: sync\n"}},
 	})
 }
 

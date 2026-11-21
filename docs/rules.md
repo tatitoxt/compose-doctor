@@ -15,6 +15,7 @@ and by at least one fixture in `testdata/fixtures/`.
 | CD101 | env-file-not-found | error | A required `env_file` is missing. Optional entries (`required: false`) are skipped; a sibling `*.example` file is suggested as a template. |
 | CD102 | build-context-not-found | error | A local build context directory, or its `dockerfile`, does not exist. Remote contexts (URLs, `git@…`) and `dockerfile_inline` are skipped. |
 | CD103 | bind-source-not-found | warning | A relative bind-mount source (`./…`, `../…`) does not exist. Absolute host paths are not checked because they depend on the machine that runs the stack. |
+| CD104 | watch-path-not-found | warning | A relative `develop.watch` `path` does not exist; `docker compose watch` would only sync paths that are present. Absolute paths are skipped like bind sources. |
 | CD201 | undefined-variable | warning | `$VAR`/`${VAR}` without a default whose variable is not set in the shell environment or the project `.env`. Reported once per variable. Points out when the name only exists in an `env_file` (which does not feed interpolation) or in `.env.example`. |
 | CD202 | required-variable-unset | error | `${VAR:?msg}` / `${VAR?msg}` whose variable is unset (or empty for `:?`). |
 | CD203 | invalid-interpolation | error | Malformed interpolation such as an unclosed `${`. |

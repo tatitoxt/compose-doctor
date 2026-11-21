@@ -16,6 +16,8 @@ func fileRules() []Rule {
 			Summary: "A local `build` context directory or its Dockerfile does not exist."},
 		{ID: "CD103", Name: "bind-source-not-found", Severity: Warning, check: checkBindSources,
 			Summary: "A relative bind-mount source (`./…`, `../…`) does not exist."},
+		{ID: "CD104", Name: "watch-path-not-found", Severity: Warning, check: checkWatchPaths,
+			Summary: "A relative `develop.watch` path does not exist."},
 	}
 }
 
@@ -146,6 +148,25 @@ func checkBindSources(r Rule, p *compose.Project) []Finding {
 				fmt.Sprintf("service %q: bind mount source %s does not exist", s.Name, quote(src)),
 				suggestion,
 				map[string]string{"service": s.Name, "source": src}))
+		}
+	}
+	return out
+}
+
+func checkWatchPaths(r Rule, p *compose.Project) []Finding {
+	var out []Finding
+	for _, s := range p.ActiveServices() {
+		for _, w := range s.Watch {
+			if w.Path.Unresolved || w.Path.Value == "" || !isRelativePath(w.Path.Value) {
+				continue
+			}
+			if exists, _ := stat(p, w.Path.Value); exists {
+				continue
+			}
+			out = append(out, r.finding(w.Path.Loc,
+				fmt.Sprintf("service %q: develop.watch path %s not found", s.Name, quote(shown(w.Path))),
+				"`docker compose watch` only syncs paths that exist; a missing path usually means a typo or a directory that has not been created yet.",
+				nil))
 		}
 	}
 	return out

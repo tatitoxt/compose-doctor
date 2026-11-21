@@ -72,6 +72,7 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
 | CD101 | env-file-not-found | error | `env_file: ./web.env` that does not exist |
 | CD102 | build-context-not-found | error | `build: ./backend` missing, or its Dockerfile |
 | CD103 | bind-source-not-found | warning | `./static:/usr/share/nginx/html` missing |
+| CD104 | watch-path-not-found | warning | `develop.watch` `path: ./src` missing |
 | CD201 | undefined-variable | warning | `${PG_TAG}` set nowhere |
 | CD202 | required-variable-unset | error | `${DB_PASSWORD:?...}` unset |
 | CD203 | invalid-interpolation | error | `"${UNCLOSED"` |
@@ -275,7 +276,10 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 ## Limitations
 
 - Not a schema validator: unknown keys are ignored and only the fields used by
-  the rules are modelled. Run `docker compose config` for full validation.
+  the rules are modelled. `x-*` extension keys are skipped per the Compose
+  spec (they carry anchors and metadata, not config), and `develop.watch`
+  is modelled only for path checking (CD104). Run `docker compose config`
+  for full validation.
 - `include:` and `extends:` are resolved as Docker Compose does (include
   merges before the parent file; extends inherits service fields, with
   cycle detection). Files under `include:` or `extends: file:` are still
@@ -296,7 +300,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 ## Roadmap
 
-- `x-*` extension and `watch`/`develop` section awareness.
 
 ## License
 

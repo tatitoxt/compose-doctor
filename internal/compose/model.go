@@ -39,6 +39,16 @@ type Service struct {
 	// points at the `deploy` key that carried it.
 	ResourceLimits bool
 	LimitsLoc      Location
+	// Watch lists develop.watch rules for `docker compose watch`.
+	Watch []WatchRule
+}
+
+// WatchRule is one develop.watch entry: a host path watched for changes and
+// the action taken ("sync", "rebuild", "sync+restart", "sync+exec", "ignore").
+type WatchRule struct {
+	Loc    Location
+	Path   Value
+	Action string
 }
 
 // Build is the build section of a service.

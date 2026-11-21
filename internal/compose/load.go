@@ -600,7 +600,34 @@ func (p *Project) applyServicePairs(file string, s *Service, n *yaml.Node) {
 				s.ResourceLimits = true
 				s.LimitsLoc = loc(file, kv.Key)
 			}
+		case "develop":
+			p.mergeWatch(file, s, v)
 		}
+	}
+}
+
+// mergeWatch appends develop.watch entries. Each entry is a mapping whose
+// `path` is a host path (required by the Compose spec) and `action` says what
+// `docker compose watch` does on change.
+func (p *Project) mergeWatch(file string, s *Service, v *yaml.Node) {
+	_, watch := lookup(v, "watch")
+	if watch == nil {
+		return
+	}
+	for _, it := range items(watch) {
+		if it.Kind != yaml.MappingNode {
+			continue
+		}
+		_, pathNode := lookup(it, "path")
+		if pathNode == nil {
+			continue
+		}
+		rule := WatchRule{Loc: loc(file, pathNode), Path: p.value(file, pathNode)}
+		_, actionNode := lookup(it, "action")
+		if actionNode != nil && actionNode.Kind == yaml.ScalarNode {
+			rule.Action = actionNode.Value
+		}
+		s.Watch = append(s.Watch, rule)
 	}
 }
 
@@ -642,6 +669,8 @@ func resetField(s *Service, k string) {
 	case "deploy":
 		s.ResourceLimits = false
 		s.LimitsLoc = Location{}
+	case "develop":
+		s.Watch = nil
 	}
 }
 
