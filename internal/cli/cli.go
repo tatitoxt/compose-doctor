@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/tatitoxt/compose-doctor/internal/compose"
 	"github.com/tatitoxt/compose-doctor/internal/config"
@@ -94,6 +96,16 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 		if sev, ok := opts.Severities[findings[i].RuleID]; ok {
 			findings[i].Severity = sev
 		}
+	}
+	fileTexts := map[string]string{}
+	for _, f := range project.Files {
+		if data, err := os.ReadFile(filepath.Join(project.Dir, filepath.FromSlash(f))); err == nil {
+			fileTexts[f] = string(data)
+		}
+	}
+	findings, suppressed := rules.ApplyIgnores(findings, fileTexts)
+	if suppressed > 0 {
+		fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by inline directives\n", suppressed)
 	}
 	if err := write(stdout, opts.Format, report.New(Version, project.Files, project.ActiveProfiles, findings)); err != nil {
 		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)

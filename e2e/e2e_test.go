@@ -331,3 +331,55 @@ func TestUsageErrors(t *testing.T) {
 		t.Errorf("rules: %+v", res)
 	}
 }
+
+func TestInlineIgnoreDirectives(t *testing.T) {
+	dir := t.TempDir()
+	write := func(body string) {
+		if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(`services:
+  api:
+    image: example/api
+    ports:
+      - "8080:8080"
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"  # compose-doctor:ignore CD301
+  db:
+    image: example/db
+    ports:
+      - "9090:9090"
+  cache:
+    image: example/cache
+    ports:
+      - "9090:6379"
+`)
+	res := cli(t, dir, nil, "check", "--format", "json")
+	r := decode(t, res.stdout)
+	if ids := ruleIDs(r); ids["CD301"] != 1 || len(ids) != 1 {
+		t.Fatalf("rule IDs %v, want one CD301", ids)
+	}
+	if !strings.Contains(res.stderr, "1 finding(s) suppressed") {
+		t.Errorf("stderr lacks suppression note: %q", res.stderr)
+	}
+
+	write(`# compose-doctor:ignore-file
+services:
+  api:
+    image: example/api
+    ports:
+      - "8080:8080"
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"
+`)
+	res = cli(t, dir, nil, "check", "--format", "json")
+	if r := decode(t, res.stdout); len(r.Findings) != 0 {
+		t.Fatalf("ignore-file left findings: %v", ruleIDs(r))
+	}
+}

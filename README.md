@@ -38,6 +38,12 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   image tags.
 - `--strict` turns findings at or above `--fail-on` (default `warning`) into
   exit code 1; `--disable CD402,...` skips rules.
+- Inline ignore directives suppress findings next to the line they excuse:
+  `image: nginx  # compose-doctor:ignore CD102` (trailing comment, that
+  line only), `# compose-doctor:ignore CD102 CD401` on its own line (the
+  next entry), a bare `# compose-doctor:ignore` (all rules on that line)
+  and `# compose-doctor:ignore-file` (the whole file). Suppressed findings
+  are counted on stderr.
 - Per-project tuning: `compose-doctor.json` beside the Compose file
   re-severities or disables rules (`{"severity": {"CD402": "off",
   "CD102": "info"}}`). `--config` points elsewhere; `--disable` unions
@@ -276,15 +282,13 @@ macOS, with `-race`, plus staticcheck and govulncheck.
   `testdata/golden/invalid-yaml.txt`).
 - CI runs on Linux and macOS only; Windows paths are handled in code
   (`SplitShortVolume` drive letters) but not tested on Windows.
-- No `--fix`, no configuration file and no published release binaries yet;
-  build from source.
+- No `--fix` and no published release binaries yet; build from source.
 - The rule set is small and opinionated; severities reflect the author's
   judgement documented in docs/rules.md, not measured false-positive rates.
 
 ## Roadmap
 
-- Inline ignore directives (`# compose-doctor:ignore CDxxx`) and a baseline file
-  to suppress pre-existing findings in legacy projects.
+- A baseline file to suppress pre-existing findings in legacy projects.
 - `x-*` extension and `watch`/`develop` section awareness.
 
 ## License
