@@ -181,6 +181,25 @@ when known). Upload it with `github/codeql-action/upload-sarif` or any
 SARIF viewer. Exit codes are unchanged, so `--strict --format sarif` still
 fails the job after writing the log.
 
+### GitHub Action
+
+The repository doubles as a composite action: it downloads the tagged release
+binary, verifies it against `checksums.txt`, puts it on `$GITHUB_PATH` and runs
+`check` on `path` with `args` passed verbatim.
+
+```yaml
+- uses: tatitoxt/compose-doctor@v1
+  with:
+    args: --strict --format sarif -o results.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  if: always()
+  with:
+    sarif_file: results.sarif
+```
+
+Set `install-only: 'true'` to install without running `check`, or `version`
+to pin a release tag other than the latest.
+
 ## Architecture
 
 ```mermaid
@@ -264,8 +283,9 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 ## Roadmap
 
-- Release binaries with checksums (GoReleaser) and a GitHub Action wrapper.
-- Windows in the CI matrix.
+- Inline ignore directives (`# compose-doctor:ignore CDxxx`) and a baseline file
+  to suppress pre-existing findings in legacy projects.
+- `x-*` extension and `watch`/`develop` section awareness.
 
 ## License
 
