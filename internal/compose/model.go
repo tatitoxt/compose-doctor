@@ -33,6 +33,12 @@ type Service struct {
 	Healthcheck *Healthcheck
 	Profiles    []string
 	NetworkMode *Value
+	// Restart is the service's restart policy (e.g. "unless-stopped").
+	Restart *Value
+	// ResourceLimits reports deploy.resources.limits being set; LimitsLoc
+	// points at the `deploy` key that carried it.
+	ResourceLimits bool
+	LimitsLoc      Location
 }
 
 // Build is the build section of a service.

@@ -89,7 +89,7 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 		}
 		return ExitInvalidInput
 	}
-	findings := rules.Run(project, opts.Disabled)
+	findings := rules.Run(project, opts.Disabled, opts.Advisory)
 	for i := range findings {
 		if sev, ok := opts.Severities[findings[i].RuleID]; ok {
 			findings[i].Severity = sev

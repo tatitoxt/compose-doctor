@@ -590,8 +590,29 @@ func (p *Project) applyServicePairs(file string, s *Service, n *yaml.Node) {
 				val := p.value(file, v)
 				s.NetworkMode = &val
 			}
+		case "restart":
+			if v.Kind == yaml.ScalarNode {
+				val := p.value(file, v)
+				s.Restart = &val
+			}
+		case "deploy":
+			if deployHasLimits(v) {
+				s.ResourceLimits = true
+				s.LimitsLoc = loc(file, kv.Key)
+			}
 		}
 	}
+}
+
+// deployHasLimits reports whether a `deploy:` mapping sets
+// resources.limits (cpus and/or memory).
+func deployHasLimits(n *yaml.Node) bool {
+	_, res := lookup(n, "resources")
+	if res == nil {
+		return false
+	}
+	_, lim := lookup(res, "limits")
+	return lim != nil && len(pairs(lim)) > 0
 }
 
 func resetField(s *Service, k string) {
@@ -616,6 +637,11 @@ func resetField(s *Service, k string) {
 		s.Profiles = nil
 	case "network_mode":
 		s.NetworkMode = nil
+	case "restart":
+		s.Restart = nil
+	case "deploy":
+		s.ResourceLimits = false
+		s.LimitsLoc = Location{}
 	}
 }
 

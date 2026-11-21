@@ -33,6 +33,9 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
 - Runs 17 rules (table below) and reports findings in human-readable text,
   JSON (`--format json`, schema version 1) or SARIF 2.1.0
   (`--format sarif`) for code-scanning integrations, sorted deterministically.
+- Opt-in advisory rules (`--advisory`, CD6xx) flag missing operational
+  hardening: no `restart` policy, no `deploy.resources.limits`, unpinned
+  image tags.
 - `--strict` turns findings at or above `--fail-on` (default `warning`) into
   exit code 1; `--disable CD402,...` skips rules.
 - Per-project tuning: `compose-doctor.json` beside the Compose file
@@ -125,6 +128,7 @@ compose-doctor check [flags] [path]   path: project directory (default ".") or a
   --ignore-os-env        do not read variables from the process environment
   --format human|json|sarif   output format (default human)
   --strict               exit 1 when a finding at or above --fail-on is reported
+  --advisory             also run advisory rules (CD6xx: restart policy, resource limits, image pinning)
   --fail-on SEVERITY     info, warning or error (default warning)
   --disable IDS          comma-separated rule IDs to skip, repeatable
   --config FILE          per-project rules file (default: <project>/compose-doctor.json)
@@ -262,7 +266,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 
 - Release binaries with checksums (GoReleaser) and a GitHub Action wrapper.
 - Windows in the CI matrix.
-- Advisory rules for `restart` policies and resource limits.
 
 ## License
 

@@ -22,6 +22,8 @@ type Check struct {
 	FailOn      rules.Severity
 	Disabled    map[string]bool
 	IgnoreOSEnv bool
+	// Advisory enables the opt-in advisory rules (CD6xx operational hints).
+	Advisory bool
 	// ConfigPath is the --config rules file (empty = auto-detect).
 	ConfigPath string
 	// Severities holds per-rule severity overrides from the rules file.
@@ -54,6 +56,7 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 	fs.BoolVar(&c.Strict, "strict", false, "exit 1 when a finding at or above --fail-on is reported")
 	failOn := fs.String("fail-on", "warning", "minimum severity that fails --strict: info, warning or error")
 	fs.BoolVar(&c.IgnoreOSEnv, "ignore-os-env", false, "do not read variables from the process environment")
+	fs.BoolVar(&c.Advisory, "advisory", false, "also run advisory rules (CD6xx: restart policy, resource limits, image pinning)")
 	fs.StringVar(&c.ConfigPath, "config", "", "per-project rules file (default: <project>/"+RulesFileName+" when present)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: compose-doctor check [flags] [path]")

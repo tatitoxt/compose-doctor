@@ -115,9 +115,15 @@ func Lookup(id string) (Rule, bool) {
 }
 
 // Run applies every rule not listed in disabled and returns sorted findings.
-func Run(p *compose.Project, disabled map[string]bool) []Finding {
+// Advisory rules (CD6xx) only run when `advisory` is true -- they flag missing
+// operational hardening, not defects, so they are opt-in via --advisory.
+func Run(p *compose.Project, disabled map[string]bool, advisory ...bool) []Finding {
+	set := All()
+	if len(advisory) > 0 && advisory[0] {
+		set = append(set, opsRules()...)
+	}
 	var out []Finding
-	for _, r := range All() {
+	for _, r := range set {
 		if r.check == nil || disabled[r.ID] {
 			continue
 		}
