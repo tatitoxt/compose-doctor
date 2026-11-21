@@ -68,6 +68,10 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
 		return ExitUsage
 	}
+	if err := opts.ApplyRulesFile(); err != nil {
+		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
+		return ExitUsage
+	}
 	if opts.IgnoreOSEnv {
 		environ = nil
 	}
@@ -86,6 +90,11 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 		return ExitInvalidInput
 	}
 	findings := rules.Run(project, opts.Disabled)
+	for i := range findings {
+		if sev, ok := opts.Severities[findings[i].RuleID]; ok {
+			findings[i].Severity = sev
+		}
+	}
 	if err := write(stdout, opts.Format, report.New(Version, project.Files, project.ActiveProfiles, findings)); err != nil {
 		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
 		return ExitInvalidInput

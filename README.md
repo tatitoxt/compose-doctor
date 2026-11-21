@@ -34,6 +34,11 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   (`--format sarif`) for code-scanning integrations, sorted deterministically.
 - `--strict` turns findings at or above `--fail-on` (default `warning`) into
   exit code 1; `--disable CD402,...` skips rules.
+- Per-project tuning: `compose-doctor.json` beside the Compose file
+  re-severities or disables rules (`{"severity": {"CD402": "off",
+  "CD102": "info"}}`). `--config` points elsewhere; `--disable` unions
+  with the file's `off` entries. `CD001` cannot be disabled or
+  re-severitied — it reports input that cannot be analysed.
 - Never prints variable values: only names, paths and the raw text of the
   file. Never writes files, runs Docker, a shell or containers, or opens
   network connections (the binary does not link `net` or `os/exec`; a test
@@ -121,6 +126,7 @@ compose-doctor check [flags] [path]   path: project directory (default ".") or a
   --strict               exit 1 when a finding at or above --fail-on is reported
   --fail-on SEVERITY     info, warning or error (default warning)
   --disable IDS          comma-separated rule IDs to skip, repeatable
+  --config FILE          per-project rules file (default: <project>/compose-doctor.json)
 compose-doctor rules [--format json]
 compose-doctor version
 ```
@@ -224,8 +230,8 @@ make golden                   # regenerate golden files after an intended change
 - **Fuzz:** `FuzzInterpolate` and `FuzzLoad` (no panics, only typed errors).
 
 Measured in this repository on Linux with Go 1.26.11
-(`go test -count=1 -v ./... | grep -c '^--- PASS'`): 61 top-level tests,
-166 including subtests, all passing. CI runs the same suites on Ubuntu and
+(`go test -count=1 -v ./... | grep -c '^--- PASS'`): 69 top-level tests,
+175 including subtests, all passing. CI runs the same suites on Ubuntu and
 macOS, with `-race`, plus staticcheck and govulncheck.
 
 ## Limitations
@@ -253,7 +259,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 - Release binaries with checksums (GoReleaser) and a GitHub Action wrapper.
 - Windows in the CI matrix.
 - Resolve `include:` and `extends:`.
-- Config file for per-project rule severities and ignores.
 - Advisory rules for `restart` policies and resource limits.
 
 ## License

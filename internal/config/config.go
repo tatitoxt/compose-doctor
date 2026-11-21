@@ -22,6 +22,10 @@ type Check struct {
 	FailOn      rules.Severity
 	Disabled    map[string]bool
 	IgnoreOSEnv bool
+	// ConfigPath is the --config rules file (empty = auto-detect).
+	ConfigPath string
+	// Severities holds per-rule severity overrides from the rules file.
+	Severities map[string]rules.Severity
 }
 
 type listFlag []string
@@ -50,6 +54,7 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 	fs.BoolVar(&c.Strict, "strict", false, "exit 1 when a finding at or above --fail-on is reported")
 	failOn := fs.String("fail-on", "warning", "minimum severity that fails --strict: info, warning or error")
 	fs.BoolVar(&c.IgnoreOSEnv, "ignore-os-env", false, "do not read variables from the process environment")
+	fs.StringVar(&c.ConfigPath, "config", "", "per-project rules file (default: <project>/"+RulesFileName+" when present)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: compose-doctor check [flags] [path]")
 		fmt.Fprintln(stderr, "\nDiagnoses a Docker Compose project offline. path is a directory (default \".\") or a Compose file.")
