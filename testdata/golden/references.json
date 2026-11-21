@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD501",
+      "rule": "undefined-volume",
+      "severity": "error",
+      "message": "service \"db\" uses named volume \"backups\", which is not declared under top-level volumes",
+      "location": {
+        "file": "compose.yaml",
+        "line": 6,
+        "column": 9
+      },
+      "evidence": {
+        "service": "db",
+        "volume": "backups"
+      },
+      "suggestion": "Declare it (`volumes: {backups: {}}`), or use \"./backups\" if you meant a bind mount of a local directory."
+    },
+    {
+      "rule_id": "CD502",
+      "rule": "undefined-network",
+      "severity": "error",
+      "message": "service \"db\" joins network \"monitoring\", which is not declared under top-level networks",
+      "location": {
+        "file": "compose.yaml",
+        "line": 8,
+        "column": 25
+      },
+      "evidence": {
+        "network": "monitoring",
+        "service": "db"
+      },
+      "suggestion": "Declare it (`networks: {monitoring: {}}`), or mark it `external: true` if it is created outside this project."
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "error": 2,
+    "warning": 0,
+    "info": 0
+  }
+}

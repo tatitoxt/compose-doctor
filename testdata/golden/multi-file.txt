@@ -1,0 +1,9 @@
+exit=0
+Checked base.yaml, prod.yaml
+
+prod.yaml:3:13  error    CD301  host port 3000/tcp is published twice by services "api" and "web": "3000:3000" at base.yaml:4:13 and "3000:80"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+prod.yaml:5:7  warning  CD403  service "web" waits for "api" to be healthy, but "api" has no healthcheck in Compose
+    hint: Add a `healthcheck:` to "api". This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline.
+
+2 findings (1 error, 1 warning, 0 info)

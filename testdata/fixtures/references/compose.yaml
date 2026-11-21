@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - backups:/backups
+      - /tmp/scratch
+    networks: [backend, monitoring]
+  proxy:
+    image: nginx:1.27
+    network_mode: host
+    networks: [ignored-with-network-mode]
+volumes:
+  pgdata: {}
+networks:
+  backend: {}

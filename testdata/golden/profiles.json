@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [
+    "debug"
+  ],
+  "findings": [
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "host port 8000/tcp is published twice by services \"app\" and \"debug-ui\": \"8000:8000\" at compose.yaml:4:13 and \"8000:8080\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 8,
+        "column": 13
+      },
+      "evidence": {
+        "other_location": "compose.yaml:4:13",
+        "other_port": "8000:8000",
+        "other_service": "app",
+        "port": "8000:8080",
+        "service": "debug-ui"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    },
+    {
+      "rule_id": "CD101",
+      "rule": "env-file-not-found",
+      "severity": "error",
+      "message": "service \"debug-ui\": env_file \"./debug.env\" not found",
+      "location": {
+        "file": "compose.yaml",
+        "line": 9,
+        "column": 15
+      },
+      "evidence": {
+        "path": "./debug.env",
+        "service": "debug-ui"
+      },
+      "suggestion": "Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`."
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "error": 2,
+    "warning": 0,
+    "info": 0
+  }
+}

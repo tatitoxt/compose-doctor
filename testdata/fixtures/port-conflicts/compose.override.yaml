@@ -1,0 +1,8 @@
+services:
+  web:
+    ports:
+      - "8080:80"      # identical to the base entry: merged, not a conflict
+  worker:
+    image: example/worker
+    ports:
+      - "53:5353/udp"  # conflicts with dns

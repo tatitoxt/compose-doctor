@@ -1,0 +1,21 @@
+services:
+  api:
+    image: example/api
+    ports:
+      - "8080:8080"
+      - "127.0.0.1:9090:9090"
+  web:
+    image: nginx:1.27
+    ports:
+      - "8080:80"            # conflicts with api
+      - "127.0.0.2:9090:80"  # different host IP: no conflict
+      - "80"                 # ephemeral: never reported
+  dns:
+    image: example/dns
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"          # different protocol: no conflict
+  metrics:
+    image: example/metrics
+    ports:
+      - "${METRICS_PORT:-9090}:9100"  # resolves to 9090 on all interfaces

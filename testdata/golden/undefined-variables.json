@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD201",
+      "rule": "undefined-variable",
+      "severity": "warning",
+      "message": "variable PG_TAG is not set and will be replaced by an empty string",
+      "location": {
+        "file": "compose.yaml",
+        "line": 3,
+        "column": 12
+      },
+      "evidence": {
+        "path": "services.db.image",
+        "variable": "PG_TAG"
+      },
+      "suggestion": "PG_TAG is listed in .env.example: copy .env.example to .env and set a local value. If empty is intended, write ${PG_TAG:-} to make it explicit."
+    },
+    {
+      "rule_id": "CD202",
+      "rule": "required-variable-unset",
+      "severity": "error",
+      "message": "required variable DB_PASSWORD is not set; docker compose will refuse to start",
+      "location": {
+        "file": "compose.yaml",
+        "line": 5,
+        "column": 26
+      },
+      "evidence": {
+        "path": "services.db.environment.POSTGRES_PASSWORD",
+        "variable": "DB_PASSWORD"
+      },
+      "suggestion": "DB_PASSWORD is listed in .env.example: copy .env.example to .env and set a local value."
+    },
+    {
+      "rule_id": "CD201",
+      "rule": "undefined-variable",
+      "severity": "warning",
+      "message": "variable DB_NAME is not set and will be replaced by an empty string",
+      "location": {
+        "file": "compose.yaml",
+        "line": 6,
+        "column": 20
+      },
+      "evidence": {
+        "path": "services.db.environment.POSTGRES_DB",
+        "variable": "DB_NAME"
+      },
+      "suggestion": "DB_NAME is listed in .env.example: copy .env.example to .env and set a local value. If empty is intended, write ${DB_NAME:-} to make it explicit."
+    },
+    {
+      "rule_id": "CD201",
+      "rule": "undefined-variable",
+      "severity": "warning",
+      "message": "variable API_TAG is not set and will be replaced by an empty string (referenced 2 times)",
+      "location": {
+        "file": "compose.yaml",
+        "line": 8,
+        "column": 12
+      },
+      "evidence": {
+        "other_locations": "compose.yaml:10:33",
+        "path": "services.api.image",
+        "variable": "API_TAG"
+      },
+      "suggestion": "API_TAG is declared in env_file \"./api.env\" of service \"api\", but env_file only sets the container environment; Compose interpolation reads only the shell environment and the project .env file. Set API_TAG in the project .env file or the shell environment. If empty is intended, write ${API_TAG:-} to make it explicit."
+    },
+    {
+      "rule_id": "CD203",
+      "rule": "invalid-interpolation",
+      "severity": "error",
+      "message": "invalid interpolation: unclosed \"${\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 12,
+        "column": 15
+      },
+      "evidence": {
+        "path": "services.api.environment.BROKEN"
+      },
+      "suggestion": "Use ${NAME}, ${NAME:-default} or ${NAME:?error}; write $$ for a literal dollar sign."
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "error": 2,
+    "warning": 3,
+    "info": 0
+  }
+}
