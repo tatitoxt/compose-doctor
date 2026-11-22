@@ -22,6 +22,10 @@ type Report struct {
 	Profiles      []string        `json:"profiles"`
 	Findings      []rules.Finding `json:"findings"`
 	Summary       Summary         `json:"summary"`
+
+	// Dir is the absolute project directory; used by SARIF to make artifact
+	// URIs relative to the working directory. Not serialised.
+	Dir string `json:"-"`
 }
 
 // Summary counts findings by severity.

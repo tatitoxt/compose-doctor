@@ -179,7 +179,7 @@ func TestAcceptanceScenarios(t *testing.T) {
 		wantCode int
 		wantIDs  map[string]int
 	}{
-		{"undefined-variables", nil, 0, map[string]int{"CD201": 3, "CD202": 1, "CD203": 1}},
+		{"undefined-variables", nil, 0, map[string]int{"CD201": 4, "CD202": 1, "CD203": 1}},
 		{"undefined-variables", []string{"--strict"}, 1, nil},
 		{"missing-files", []string{"--strict", "--fail-on", "error"}, 1, map[string]int{"CD101": 2, "CD102": 2, "CD103": 2}},
 		{"port-conflicts", nil, 0, map[string]int{"CD301": 4}},

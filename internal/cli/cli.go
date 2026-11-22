@@ -92,19 +92,37 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 		}
 		return ExitInvalidInput
 	}
-	findings := rules.Run(project, opts.Disabled, opts.Advisory)
-	for i := range findings {
-		if sev, ok := opts.Severities[findings[i].RuleID]; ok {
-			findings[i].Severity = sev
+	scan := func() ([]rules.Finding, error) {
+		findings := rules.Run(project, opts.Disabled, opts.Advisory)
+		for i := range findings {
+			if sev, ok := opts.Severities[findings[i].RuleID]; ok {
+				findings[i].Severity = sev
+			}
 		}
+		return findings, nil
 	}
-	fileTexts := map[string]string{}
-	for _, f := range project.Files {
-		if data, err := os.ReadFile(filepath.Join(project.Dir, filepath.FromSlash(f))); err == nil {
-			fileTexts[f] = string(data)
+	readTexts := func(findings []rules.Finding) map[string]string {
+		fileTexts := map[string]string{}
+		need := map[string]bool{}
+		for _, f := range project.Files {
+			need[f] = true
 		}
+		// Findings may point at files outside project.Files (extends bases,
+		// included files): collect their texts too so directives apply.
+		for _, f := range findings {
+			need[f.Location.File] = true
+		}
+		for f := range need {
+			if data, err := os.ReadFile(filepath.Join(project.Dir, filepath.FromSlash(f))); err == nil {
+				fileTexts[f] = string(data)
+			} else if data, err := os.ReadFile(filepath.FromSlash(f)); err == nil {
+				fileTexts[f] = string(data)
+			}
+		}
+		return fileTexts
 	}
-	findings, suppressed := rules.ApplyIgnores(findings, fileTexts)
+	findings, _ := scan()
+	findings, suppressed := rules.ApplyIgnores(findings, readTexts(findings))
 	if suppressed > 0 {
 		fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by inline directives\n", suppressed)
 	}
@@ -114,9 +132,18 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 			fmt.Fprintf(stderr, "compose-doctor: %v\n", ferr)
 			return ExitInvalidInput
 		}
-		findings = remaining
 		for _, fx := range applied {
 			fmt.Fprintf(stderr, "compose-doctor: fixed %s at %s:%d\n", fx.RuleID, fx.File, fx.Line)
+		}
+		// Re-analyse so remaining findings carry post-fix locations.
+		if rep, rerr := compose.Load(compose.Options{
+			Path: opts.Path, Files: opts.Files, EnvFile: opts.EnvFile, Environ: environ, Profiles: opts.Profiles,
+		}); rerr == nil {
+			project = rep
+			findings, _ = scan()
+			findings, _ = rules.ApplyIgnores(findings, readTexts(findings))
+		} else {
+			findings = remaining
 		}
 	}
 	baselinePath := opts.BaselinePath
@@ -153,7 +180,9 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 			fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by baseline\n", n)
 		}
 	}
-	if err := write(stdout, opts.Format, report.New(Version, project.Files, project.ActiveProfiles, findings)); err != nil {
+	rep := report.New(Version, project.Files, project.ActiveProfiles, findings)
+	rep.Dir = project.Dir
+	if err := write(stdout, opts.Format, rep); err != nil {
 		fmt.Fprintf(stderr, "compose-doctor: %v\n", err)
 		return ExitInvalidInput
 	}

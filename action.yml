@@ -75,7 +75,17 @@ runs:
       id: check
       if: inputs.install-only != 'true'
       shell: bash
+      env:
+        CD_BIN: ${{ steps.install.outputs.bin }}
+        CD_ARGS: ${{ inputs.args }}
+        CD_PATH: ${{ inputs.path }}
       run: |
-        report="$RUNNER_TEMP/compose-doctor-report.txt"
-        ${{ steps.install.outputs.bin }} check ${{ inputs.args }} "${{ inputs.path }}" | tee "$report"
+        set -uo pipefail
+        report="$RUNNER_TEMP/compose-doctor-report-$GITHUB_RUN_ID-$GITHUB_ACTION.txt"
+        # CD_ARGS intentionally word-splits into flags; values are never
+        # re-evaluated, so inputs cannot inject shell commands.
+        read -ra argv <<< "$CD_ARGS"
+        "$CD_BIN" check "${argv[@]}" "$CD_PATH" | tee "$report"
+        rc=${PIPESTATUS[0]}
         echo "report=$report" >> "$GITHUB_OUTPUT"
+        exit $rc

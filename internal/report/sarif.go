@@ -3,7 +3,9 @@ package report
 import (
 	"encoding/json"
 	"io"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/tatitoxt/compose-doctor/internal/rules"
 )
@@ -110,6 +112,17 @@ func SARIF(w io.Writer, r Report) error {
 			HelpURI: ToolHomepage + "/blob/main/docs/rules.md",
 		})
 	}
+	cwd, _ := os.Getwd()
+	uri := func(file string) string {
+		abs := file
+		if !filepath.IsAbs(abs) && r.Dir != "" {
+			abs = filepath.Join(r.Dir, filepath.FromSlash(file))
+		}
+		if rel, err := filepath.Rel(cwd, abs); err == nil && !strings.HasPrefix(rel, "..") {
+			return filepath.ToSlash(rel)
+		}
+		return filepath.ToSlash(file)
+	}
 	results := make([]sarifResult, 0, len(r.Findings))
 	for _, f := range r.Findings {
 		msg := f.Message
@@ -117,7 +130,7 @@ func SARIF(w io.Writer, r Report) error {
 			msg += " " + f.Suggestion
 		}
 		loc := sarifLocation{PhysicalLocation: sarifPhysicalLocation{
-			ArtifactLocation: sarifArtifact{URI: filepath.ToSlash(f.Location.File)},
+			ArtifactLocation: sarifArtifact{URI: uri(f.Location.File)},
 		}}
 		if f.Location.Line > 0 {
 			loc.PhysicalLocation.Region = &sarifRegion{
