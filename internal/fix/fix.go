@@ -22,12 +22,18 @@ type Result struct {
 	Line   int    `json:"line"`
 }
 
-// A top-level `version:` key: no indentation, quoted or plain scalar value.
-var versionKeyLine = regexp.MustCompile(`^version\s*:`)
+// A top-level `version:` key with a single-line scalar value and no anchor
+// or block continuation (multiline/anchored forms are left alone).
+var versionKeyLine = regexp.MustCompile(`^version\s*:\s*('[^']*'|"[^"]*"|[^\s&|>{][^\s#]*)\s*(#.*)?$`)
 
 // A service key line inside `services:` (`  web:` — indented, scalar key,
 // nothing after the colon except an optional comment).
-var serviceKeyLine = regexp.MustCompile(`^(\s+)\S[^:]+:\s*(#.*)?$`)
+var serviceKeyLine = regexp.MustCompile(`^(\s+)\S[^:]*:\s*(#.*)?$`)
+
+// A block-mapping entry (`key:` or `key: value`), used to confirm the line
+// after a service key can hold an inserted entry.
+var blockEntryLine = regexp.MustCompile(`^\s+[^\s{\[-][^:]*:(\s|$)`)
+var restartKeyLine = regexp.MustCompile(`^\s+restart\s*:`)
 
 type op struct {
 	line       int // 0-based index the op anchors to
@@ -56,7 +62,14 @@ func Apply(projectDir string, findings []rules.Finding) (applied []Result, remai
 		}
 		// Never write outside the project directory (e.g. an `include:` path
 		// reported as ../other-compose.yaml).
-		if rel, relErr := filepath.Rel(projectDir, path); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		// Resolve symlinks on both sides before the boundary check so a
+		// project symlink cannot escape into an external file.
+		realDir, _ := filepath.EvalSymlinks(projectDir)
+		realPath, _ := filepath.EvalSymlinks(path)
+		if realPath == "" {
+			realPath = path
+		}
+		if rel, relErr := filepath.Rel(realDir, realPath); relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			continue
 		}
 		data, rerr := os.ReadFile(path)
@@ -112,8 +125,9 @@ func planOp(f rules.Finding, lines []string) (op, bool) {
 		return op{line: line, remove: true}, true
 	case "CD601":
 		// Insert `restart: unless-stopped` inside the service's block mapping:
-		// the service key must end the line, and the next non-empty line must
-		// be a more-indented block (a scalar/empty service is left alone).
+		// the service key must end the line, and the next non-blank,
+		// non-comment line must be a block entry at deeper indent (flow
+		// mappings, comments and scalars are left alone).
 		m := serviceKeyLine.FindStringSubmatch(lines[line])
 		if m == nil {
 			return op{}, false
@@ -121,10 +135,20 @@ func planOp(f rules.Finding, lines []string) (op, bool) {
 		indent := ""
 		for j := line + 1; j < len(lines); j++ {
 			body := lines[j]
-			if strings.TrimSpace(body) == "" {
+			t := strings.TrimSpace(body)
+			if t == "" {
 				continue
 			}
 			if !strings.HasPrefix(body, m[1]+" ") && !strings.HasPrefix(body, m[1]+"\t") {
+				return op{}, false
+			}
+			if strings.HasPrefix(t, "#") {
+				continue
+			}
+			if restartKeyLine.MatchString(body) {
+				return op{}, false // a restart key (even !reset) exists
+			}
+			if !blockEntryLine.MatchString(body) {
 				return op{}, false
 			}
 			indent = body[:len(body)-len(strings.TrimLeft(body, " \t"))]
