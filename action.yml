@@ -84,7 +84,7 @@ runs:
         report="$RUNNER_TEMP/compose-doctor-report-$GITHUB_RUN_ID-$GITHUB_ACTION.txt"
         # CD_ARGS intentionally word-splits into flags; values are never
         # re-evaluated, so inputs cannot inject shell commands.
-        read -ra argv <<< "$CD_ARGS"
+        mapfile -t argv < <(printf '%s\n' "$CD_ARGS" | xargs -r -n1)
         "$CD_BIN" check "${argv[@]}" "$CD_PATH" | tee "$report"
         rc=${PIPESTATUS[0]}
         echo "report=$report" >> "$GITHUB_OUTPUT"

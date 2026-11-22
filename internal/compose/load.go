@@ -129,13 +129,27 @@ func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[s
 		}
 		target = filepath.Clean(target)
 		if err := p.loadFile(target, parsed, loading); err != nil {
+			if inc != target {
+				// The path was interpolated: report it under the raw text so
+				// resolved values never appear in diagnostics.
+				var le *LoadError
+				if errors.As(err, &le) {
+					return &LoadError{Loc: Location{File: inc}, Msg: le.Msg}
+				}
+			}
 			return err
 		}
 	}
 
 	p.Files = append(p.Files, disp)
 	p.merged[f] = true
-	p.scan(disp, root, "")
+	if !p.scanned[f] {
+		if p.scanned == nil {
+			p.scanned = map[string]bool{}
+		}
+		p.scanned[f] = true
+		p.scan(disp, root, "")
+	}
 	return p.mergeFile(disp, root)
 }
 
@@ -503,6 +517,7 @@ func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node,
 		if refService == "" {
 			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: "`extends` requires a `service` name"}
 		}
+		rawRefService := refService
 		refService = p.interpName(refService)
 		baseFile := file
 		var services *yaml.Node
@@ -526,7 +541,13 @@ func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node,
 					return nil, err
 				}
 				p.parsed[target] = root
-				p.scan(p.Display(target), root, "")
+				if !p.scanned[target] {
+					if p.scanned == nil {
+						p.scanned = map[string]bool{}
+					}
+					p.scanned[target] = true
+					p.scan(p.Display(target), root, "")
+				}
 			}
 			baseFile = p.Display(target)
 			if p.absOf == nil {
@@ -550,7 +571,11 @@ func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node,
 			}
 		}
 		if base == nil {
-			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: fmt.Sprintf("extends: service %q not found in %s", refService, baseFile)}
+			shown := refService
+			if strings.Contains(rawRefService, "$") {
+				shown = rawRefService
+			}
+			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: fmt.Sprintf("extends: service %q not found in %s", shown, baseFile)}
 		}
 		ck := baseFile + "#" + refService
 		if chain[ck] {

@@ -41,13 +41,16 @@ func groupUses(p *compose.Project, keep func(compose.VarRef) bool) []varGroup {
 	return groups
 }
 
-func (g varGroup) evidence() map[string]string {
-	ev := map[string]string{"variable": g.name, "path": g.uses[0].Path}
-	if len(g.uses) > 1 {
-		var others []string
-		for _, u := range g.uses[1:] {
-			others = append(others, u.Loc.String())
+func (g varGroup) evidence(u compose.VarUse) map[string]string {
+	ev := map[string]string{"variable": g.name, "path": u.Path}
+	var others []string
+	for _, o := range g.uses {
+		if o.Loc == u.Loc && o.Path == u.Path {
+			continue
 		}
+		others = append(others, o.Loc.String())
+	}
+	if len(others) > 0 {
 		ev["other_locations"] = strings.Join(others, ", ")
 	}
 	return ev
@@ -97,7 +100,7 @@ func checkUndefinedVars(r Rule, p *compose.Project) []Finding {
 			out = append(out, r.finding(u.Loc,
 				fmt.Sprintf("variable %s is not set and will be replaced by an empty string%s", g.name, g.countSuffix()),
 				varSuggestion(p, g.name)+fmt.Sprintf(" If empty is intended, write ${%s:-} to make it explicit.", g.name),
-				g.evidence()))
+				g.evidence(u)))
 		}
 	}
 	return out
@@ -114,7 +117,7 @@ func checkRequiredVars(r Rule, p *compose.Project) []Finding {
 			out = append(out, r.finding(u.Loc,
 				fmt.Sprintf("required variable %s %s; docker compose will refuse to start%s", g.name, state, g.countSuffix()),
 				varSuggestion(p, g.name),
-				g.evidence()))
+				g.evidence(u)))
 		}
 	}
 	return out

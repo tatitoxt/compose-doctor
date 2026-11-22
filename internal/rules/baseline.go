@@ -82,7 +82,7 @@ func BaselineFromFindings(findings []Finding) []BaselineEntry {
 // findings plus the number suppressed.
 // locRe strips "file:line:col" fragments so a baseline match survives lines
 // moving when unrelated content is inserted above them.
-var locRe = regexp.MustCompile(`\S+:\d+(:\d+)?`)
+var locRe = regexp.MustCompile(`[\w.~/-]+\.\w+:\d+(:\d+)?`)
 
 func normMsg(s string) string { return locRe.ReplaceAllString(s, "<loc>") }
 
