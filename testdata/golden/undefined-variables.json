@@ -73,6 +73,23 @@
       "suggestion": "API_TAG is declared in env_file \"./api.env\" of service \"api\", but env_file only sets the container environment; Compose interpolation reads only the shell environment and the project .env file. Set API_TAG in the project .env file or the shell environment. If empty is intended, write ${API_TAG:-} to make it explicit."
     },
     {
+      "rule_id": "CD201",
+      "rule": "undefined-variable",
+      "severity": "warning",
+      "message": "variable API_TAG is not set and will be replaced by an empty string (referenced 2 times)",
+      "location": {
+        "file": "compose.yaml",
+        "line": 10,
+        "column": 33
+      },
+      "evidence": {
+        "other_locations": "compose.yaml:10:33",
+        "path": "services.api.image",
+        "variable": "API_TAG"
+      },
+      "suggestion": "API_TAG is declared in env_file \"./api.env\" of service \"api\", but env_file only sets the container environment; Compose interpolation reads only the shell environment and the project .env file. Set API_TAG in the project .env file or the shell environment. If empty is intended, write ${API_TAG:-} to make it explicit."
+    },
+    {
       "rule_id": "CD203",
       "rule": "invalid-interpolation",
       "severity": "error",
@@ -89,9 +106,9 @@
     }
   ],
   "summary": {
-    "total": 5,
+    "total": 6,
     "error": 2,
-    "warning": 3,
+    "warning": 4,
     "info": 0
   }
 }

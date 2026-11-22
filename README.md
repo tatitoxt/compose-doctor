@@ -282,8 +282,8 @@ make golden                   # regenerate golden files after an intended change
 - **Fuzz:** `FuzzInterpolate` and `FuzzLoad` (no panics, only typed errors).
 
 Measured in this repository on Linux with Go 1.26.11
-(`go test -count=1 -v ./... | grep -c '^--- PASS'`): 69 top-level tests,
-175 including subtests, all passing. CI runs the same suites on Ubuntu and
+(`go test -count=1 -v ./... | grep -c '^--- PASS'`): 101 top-level tests,
+214 including subtests, all passing. CI runs the same suites on Ubuntu and
 macOS, with `-race`, plus staticcheck and govulncheck.
 
 ## Limitations
