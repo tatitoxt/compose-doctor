@@ -123,13 +123,18 @@ func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[s
 	defer delete(loading, f)
 
 	for _, inc := range includePaths(root) {
+		rawTarget := inc
 		target := p.interpName(inc)
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(f), target)
 		}
 		target = filepath.Clean(target)
+		if !filepath.IsAbs(rawTarget) {
+			rawTarget = filepath.Join(filepath.Dir(f), rawTarget)
+		}
+		rawTarget = filepath.Clean(rawTarget)
 		if err := p.loadFile(target, parsed, loading); err != nil {
-			if inc != target {
+			if target != rawTarget {
 				// The path was interpolated: report it under the raw text so
 				// resolved values never appear in diagnostics.
 				var le *LoadError

@@ -83,9 +83,14 @@ runs:
         set -uo pipefail
         report="$RUNNER_TEMP/compose-doctor-report-$GITHUB_RUN_ID-$GITHUB_ACTION.txt"
         # CD_ARGS intentionally word-splits into flags; values are never
-        # re-evaluated, so inputs cannot inject shell commands.
-        mapfile -t argv < <(printf '%s\n' "$CD_ARGS" | xargs -r -n1)
-        "$CD_BIN" check "${argv[@]}" "$CD_PATH" | tee "$report"
+        # re-evaluated, so inputs cannot inject shell commands. A read loop
+        # is used instead of mapfile (absent in macOS system Bash 3.2), and
+        # xargs without -r (a GNU-only flag skipped by BSD xargs).
+        argv=()
+        while IFS= read -r arg; do
+          [ -n "$arg" ] && argv+=("$arg")
+        done < <(printf '%s\n' "$CD_ARGS" | xargs -n1)
+        "$CD_BIN" check ${argv[@]+"${argv[@]}"} "$CD_PATH" | tee "$report"
         rc=${PIPESTATUS[0]}
         echo "report=$report" >> "$GITHUB_OUTPUT"
         exit $rc

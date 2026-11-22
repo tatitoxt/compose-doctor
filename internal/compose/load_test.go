@@ -285,3 +285,17 @@ func TestExtendsErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestIncludeErrorKeepsChildLocation(t *testing.T) {
+	dir := writeTree(t, map[string]string{
+		"compose.yaml": "include: [child.yaml]\nservices: {}\n",
+		"child.yaml":   "services:\n  web:\n    image: [unclosed\n",
+	})
+	var le *LoadError
+	if _, err := Load(Options{Path: dir}); !errors.As(err, &le) {
+		t.Fatalf("expected load error, got %v", err)
+	}
+	if !strings.HasSuffix(le.Loc.File, "child.yaml") || le.Loc.Line == 0 {
+		t.Fatalf("expected error located inside child.yaml with a line, got %+v", le.Loc)
+	}
+}
