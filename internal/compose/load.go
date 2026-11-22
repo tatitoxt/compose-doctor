@@ -71,6 +71,25 @@ func Load(opts Options) (*Project, error) {
 	return p, nil
 }
 
+// interpName expands a file or service reference that may use $VARIABLES.
+// An unresolvable or malformed reference is returned unchanged so the
+// caller reports it as a missing file/service.
+func (p *Project) interpName(s string) string {
+	if !strings.Contains(s, "$") {
+		return s
+	}
+	v, refs, err := Interpolate(s, p.lookupEnv)
+	if err != nil {
+		return s
+	}
+	for _, r := range refs {
+		if r.Problem {
+			return s
+		}
+	}
+	return v
+}
+
 // loadFile parses one Compose file, resolves its `include:` entries (merged
 // before the including file, per the Compose spec) and merges the file into
 // the project. `loading` detects include cycles.
@@ -79,18 +98,23 @@ func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[s
 	if loading[f] {
 		return &LoadError{Loc: Location{File: disp}, Msg: "circular include"}
 	}
-	if _, done := parsed[f]; done {
+	if p.merged == nil {
+		p.merged = map[string]bool{}
+	}
+	if p.merged[f] {
 		return nil // already merged through another include
 	}
-	data, err := readRegularFile(f, MaxComposeFileSize)
-	if err != nil {
-		return &LoadError{Loc: Location{File: disp}, Msg: "cannot read file: " + describeErr(err)}
+	root, ok := parsed[f]
+	if !ok {
+		data, err := readRegularFile(f, MaxComposeFileSize)
+		if err != nil {
+			return &LoadError{Loc: Location{File: disp}, Msg: "cannot read file: " + describeErr(err)}
+		}
+		if root, err = parseYAML(disp, data); err != nil {
+			return err
+		}
+		parsed[f] = root
 	}
-	root, err := parseYAML(disp, data)
-	if err != nil {
-		return err
-	}
-	parsed[f] = root
 	if p.absOf == nil {
 		p.absOf = map[string]string{}
 	}
@@ -99,7 +123,7 @@ func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[s
 	defer delete(loading, f)
 
 	for _, inc := range includePaths(root) {
-		target := inc
+		target := p.interpName(inc)
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(f), target)
 		}
@@ -110,6 +134,7 @@ func (p *Project) loadFile(f string, parsed map[string]*yaml.Node, loading map[s
 	}
 
 	p.Files = append(p.Files, disp)
+	p.merged[f] = true
 	p.scan(disp, root, "")
 	return p.mergeFile(disp, root)
 }
@@ -478,11 +503,13 @@ func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node,
 		if refService == "" {
 			return nil, &LoadError{Loc: loc(file, kv.Key), Msg: "`extends` requires a `service` name"}
 		}
+		refService = p.interpName(refService)
 		baseFile := file
 		var services *yaml.Node
 		if refFile == "" {
 			services = siblings
 		} else {
+			refFile = p.interpName(refFile)
 			abs := p.absOf[file]
 			target := refFile
 			if !filepath.IsAbs(target) {
@@ -499,8 +526,13 @@ func (p *Project) resolveExtends(file string, n *yaml.Node, siblings *yaml.Node,
 					return nil, err
 				}
 				p.parsed[target] = root
+				p.scan(p.Display(target), root, "")
 			}
 			baseFile = p.Display(target)
+			if p.absOf == nil {
+				p.absOf = map[string]string{}
+			}
+			p.absOf[baseFile] = target
 			for _, kv2 := range pairs(root) {
 				if kv2.Key.Value == "services" {
 					services = resolve(kv2.Val)
@@ -601,6 +633,9 @@ func (p *Project) applyServicePairs(file string, s *Service, n *yaml.Node) {
 				s.LimitsLoc = loc(file, kv.Key)
 			}
 		case "develop":
+			if hasTag(raw, "!reset") || hasTag(raw, "!override") {
+				s.Watch = nil
+			}
 			p.mergeWatch(file, s, v)
 		}
 	}

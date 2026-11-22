@@ -173,6 +173,7 @@ type Project struct {
 	// Load bookkeeping: parsed YAML roots by abs path (used by extends)
 	// and display-path -> abs-path for the file being merged.
 	parsed map[string]*yaml.Node
+	merged map[string]bool
 	absOf  map[string]string
 }
 
