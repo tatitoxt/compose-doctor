@@ -53,6 +53,10 @@ func checkLatestTag(r Rule, p *compose.Project) []Finding {
 			continue
 		}
 		img := s.Image.Value
+		shown := img
+		if s.Image.Interpolated {
+			shown = s.Image.Raw
+		}
 		// Strip a registry host (first segment containing . or : or being
 		// localhost), then look at the tag after the last ':' on the name.
 		name := img[strings.LastIndex(img, "/")+1:]
@@ -62,9 +66,9 @@ func checkLatestTag(r Rule, p *compose.Project) []Finding {
 		}
 		if tag == "" || tag == "latest" {
 			out = append(out, r.finding(s.Image.Loc,
-				fmt.Sprintf("service %q uses image %q without a pinned tag", s.Name, img),
+				fmt.Sprintf("service %q uses image %q without a pinned tag", s.Name, shown),
 				"Pin a version tag (e.g. `nginx:1.25`) or a digest so builds are reproducible.",
-				map[string]string{"service": s.Name, "image": img}))
+				map[string]string{"service": s.Name, "image": shown}))
 		}
 	}
 	return out

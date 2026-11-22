@@ -29,10 +29,17 @@ func checkAbsoluteBindMounts(r Rule, p *compose.Project) []Finding {
 			if !isAbsolutePath(src) {
 				continue
 			}
+			shown := src
+			if v.Source.Interpolated {
+				shown = v.Source.Raw
+				if v.Short {
+					shown, _ = compose.SplitShortVolume(v.Source.Raw)
+				}
+			}
 			out = append(out, r.finding(v.Source.Loc,
-				fmt.Sprintf("service %q bind-mounts absolute host path %q", s.Name, src),
+				fmt.Sprintf("service %q bind-mounts absolute host path %q", s.Name, shown),
 				"Use a project-relative path (./dir), a named volume, or an env var (e.g. ${DATA_DIR}) so the project works on other machines.",
-				map[string]string{"service": s.Name, "source": src}))
+				map[string]string{"service": s.Name, "source": shown}))
 		}
 	}
 	return out
