@@ -10,7 +10,7 @@ func structureRules() []Rule {
 	return []Rule{
 		{ID: "CD002", Name: "service-without-image-or-build", Severity: Error, check: checkMissingImage,
 			Summary: "A service defines neither `image` nor `build` (and does not use `extends`)."},
-		{ID: "CD003", Name: "obsolete-version-key", Severity: Info, check: checkVersionKey,
+		{ID: "CD003", Name: "obsolete-version-key", Severity: Info, check: checkVersionKey, Fixable: true,
 			Summary: "The top-level `version` key is obsolete; Docker Compose v2 ignores it."},
 		{ID: "CD004", Name: "duplicate-key", Severity: Error, check: checkDuplicateKeys,
 			Summary: "A key is defined twice in the same mapping; Docker Compose rejects the file."},

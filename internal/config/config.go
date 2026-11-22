@@ -30,6 +30,8 @@ type Check struct {
 	BaselinePath string
 	// WriteBaseline snapshots current findings to the baseline file.
 	WriteBaseline bool
+	// Fix applies safe textual fixes for findings flagged fixable.
+	Fix bool
 	// Severities holds per-rule severity overrides from the rules file.
 	Severities map[string]rules.Severity
 }
@@ -64,6 +66,7 @@ func ParseCheck(args []string, stderr io.Writer) (Check, error) {
 	fs.StringVar(&c.ConfigPath, "config", "", "per-project rules file (default: <project>/"+RulesFileName+" when present)")
 	fs.StringVar(&c.BaselinePath, "baseline", "", "suppress findings recorded in this baseline file (default: <project>/"+rules.BaselineFileName+" when present)")
 	fs.BoolVar(&c.WriteBaseline, "write-baseline", false, "record the current findings to the baseline file and exit")
+	fs.BoolVar(&c.Fix, "fix", false, "rewrite the compose file to fix findings marked fixable, then report the rest")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: compose-doctor check [flags] [path]")
 		fmt.Fprintln(stderr, "\nDiagnoses a Docker Compose project offline. path is a directory (default \".\") or a Compose file.")

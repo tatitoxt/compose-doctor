@@ -10,7 +10,7 @@ and by at least one fixture in `testdata/fixtures/`.
 |----|------|----------|-----------------|
 | CD001 | invalid-input | error | A Compose file is missing, unreadable, empty, not valid YAML or exceeds the input limits (4 MiB, nesting depth 100). Analysis stops; exit code 3. Cannot be disabled. |
 | CD002 | service-without-image-or-build | error | A service has neither `image` nor `build` (services using `extends` are skipped). |
-| CD003 | obsolete-version-key | info | The top-level `version` key, ignored by Docker Compose v2. |
+| CD003 | obsolete-version-key | info | The top-level `version` key, ignored by Docker Compose v2. Removed in place by `check --fix`. |
 | CD004 | duplicate-key | error | The same key twice in one mapping; Docker Compose rejects the file. |
 | CD101 | env-file-not-found | error | A required `env_file` is missing. Optional entries (`required: false`) are skipped; a sibling `*.example` file is suggested as a template. |
 | CD102 | build-context-not-found | error | A local build context directory, or its `dockerfile`, does not exist. Remote contexts (URLs, `git@…`) and `dockerfile_inline` are skipped. |

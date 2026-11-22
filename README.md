@@ -48,6 +48,10 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   next entry), a bare `# compose-doctor:ignore` (all rules on that line)
   and `# compose-doctor:ignore-file` (the whole file). Suppressed findings
   are counted on stderr.
+- `check --fix` rewrites findings marked fixable in place — currently CD003
+  (`version:` key removal) — and reports each edit on stderr before printing
+  the remaining findings. Fixes only delete constructs Compose ignores, so a
+  valid file stays valid.
 - Baseline files adopt legacy projects: `check --write-baseline` records the
   current findings to `compose-doctor-baseline.json` (or `--baseline PATH`);
   later runs suppress findings matching rule + file + message (line drift is
@@ -59,9 +63,10 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   with the file's `off` entries. `CD001` cannot be disabled or
   re-severitied — it reports input that cannot be analysed.
 - Never prints variable values: only names, paths and the raw text of the
-  file. Never writes files, runs Docker, a shell or containers, or opens
+  file. Never runs Docker, a shell or containers, or opens
   network connections (the binary does not link `net` or `os/exec`; a test
-  enforces this).
+  enforces this). The only write is the opt-in `check --fix` rewrite plus
+  `--write-baseline`, both limited to files inside the project directory.
 - Bounds hostile input: 4 MiB per Compose file, 1 MiB per auxiliary file,
   YAML nesting depth 100, alias chain depth 32; only regular files are read.
 
@@ -71,7 +76,7 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
 |----|------|----------|-----------------|
 | CD001 | invalid-input | error | invalid YAML, missing or oversized file (exit 3) |
 | CD002 | service-without-image-or-build | error | service with only `restart:` |
-| CD003 | obsolete-version-key | info | `version: "3.8"` |
+| CD003 | obsolete-version-key | info | `version: "3.8"` (fixable with `--fix`) |
 | CD004 | duplicate-key | error | `environment:` twice in one service |
 | CD101 | env-file-not-found | error | `env_file: ./web.env` that does not exist |
 | CD102 | build-context-not-found | error | `build: ./backend` missing, or its Dockerfile |
@@ -151,6 +156,7 @@ compose-doctor check [flags] [path]   path: project directory (default ".") or a
   --baseline FILE        suppress findings recorded in the baseline (default:
                          <project>/compose-doctor-baseline.json when present)
   --write-baseline       record current findings to the baseline file and exit
+  --fix                  rewrite fixable findings in place (CD003)
 compose-doctor rules [--format json]
 compose-doctor version
 ```

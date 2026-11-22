@@ -11,6 +11,7 @@ import (
 
 	"github.com/tatitoxt/compose-doctor/internal/compose"
 	"github.com/tatitoxt/compose-doctor/internal/config"
+	"github.com/tatitoxt/compose-doctor/internal/fix"
 	"github.com/tatitoxt/compose-doctor/internal/report"
 	"github.com/tatitoxt/compose-doctor/internal/rules"
 )
@@ -106,6 +107,17 @@ func runCheck(args []string, stdout, stderr io.Writer, environ []string) int {
 	findings, suppressed := rules.ApplyIgnores(findings, fileTexts)
 	if suppressed > 0 {
 		fmt.Fprintf(stderr, "compose-doctor: %d finding(s) suppressed by inline directives\n", suppressed)
+	}
+	if opts.Fix {
+		applied, remaining, ferr := fix.Apply(project.Dir, findings)
+		if ferr != nil {
+			fmt.Fprintf(stderr, "compose-doctor: %v\n", ferr)
+			return ExitInvalidInput
+		}
+		findings = remaining
+		for _, fx := range applied {
+			fmt.Fprintf(stderr, "compose-doctor: fixed %s at %s:%d\n", fx.RuleID, fx.File, fx.Line)
+		}
 	}
 	baselinePath := opts.BaselinePath
 	if baselinePath == "" {

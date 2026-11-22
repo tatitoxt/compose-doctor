@@ -79,7 +79,10 @@ type Rule struct {
 	Name     string   `json:"name"`
 	Severity Severity `json:"severity"`
 	Summary  string   `json:"summary"`
-	check    func(Rule, *compose.Project) []Finding
+	// Fixable marks rules whose findings compose-doctor can rewrite safely
+	// (see check --fix); only removals that cannot break a valid file qualify.
+	Fixable bool `json:"fixable,omitempty"`
+	check   func(Rule, *compose.Project) []Finding
 }
 
 func (r Rule) finding(loc compose.Location, msg, suggestion string, evidence map[string]string) Finding {

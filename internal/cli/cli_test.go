@@ -114,3 +114,38 @@ func TestRulesCommand(t *testing.T) {
 		t.Errorf("rules bad flag: %d", code)
 	}
 }
+
+func TestFixRemovesObsoleteVersionKey(t *testing.T) {
+	dir := writeProject(t, "version: \"3.8\"\nservices:\n  app:\n    image: myapp\n")
+	out, errOut, code := run([]string{"check", "--fix", dir}, nil)
+	if code != ExitOK {
+		t.Fatalf("code=%d out=%q err=%q", code, out, errOut)
+	}
+	if !strings.Contains(errOut, "fixed CD003") {
+		t.Errorf("expected fix report on stderr, got %q", errOut)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "version") {
+		t.Errorf("version key not removed: %q", data)
+	}
+	if !strings.Contains(out, "No findings") {
+		t.Errorf("expected no remaining findings, got %q", out)
+	}
+}
+
+func TestFixLeavesNonFixableFindings(t *testing.T) {
+	dir := writeProject(t, "services:\n  app:\n    depends_on:\n      - db\n  db:\n    image: postgres:17\n")
+	out, errOut, code := run([]string{"check", "--fix", dir}, nil)
+	if code != ExitOK {
+		t.Fatalf("code=%d", code)
+	}
+	if strings.Contains(errOut, "fixed ") {
+		t.Errorf("nothing should have been fixed: %q", errOut)
+	}
+	if !strings.Contains(out, "CD002") || !strings.Contains(out, "CD402") {
+		t.Errorf("expected CD002 and CD402 findings to remain, got %q", out)
+	}
+}
