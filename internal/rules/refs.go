@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/tatitoxt/compose-doctor/internal/compose"
 )
@@ -12,7 +13,38 @@ func referenceRules() []Rule {
 			Summary: "A service mounts a named volume that is not declared under top-level `volumes`."},
 		{ID: "CD502", Name: "undefined-network", Severity: Error, check: checkUndefinedNetworks,
 			Summary: "A service joins a network that is not declared under top-level `networks` (`default` is implicit)."},
+		{ID: "CD503", Name: "absolute-bind-mount", Severity: Warning, check: checkAbsoluteBindMounts,
+			Summary: "A bind mount uses an absolute host path, which is not portable across machines and CI."},
 	}
+}
+
+func checkAbsoluteBindMounts(r Rule, p *compose.Project) []Finding {
+	var out []Finding
+	for _, s := range p.ActiveServices() {
+		for _, v := range s.Volumes {
+			if v.Type != "bind" || v.Source.Unresolved {
+				continue
+			}
+			src := v.Source.Value
+			if !isAbsolutePath(src) {
+				continue
+			}
+			out = append(out, r.finding(v.Source.Loc,
+				fmt.Sprintf("service %q bind-mounts absolute host path %q", s.Name, src),
+				"Use a project-relative path (./dir), a named volume, or an env var (e.g. ${DATA_DIR}) so the project works on other machines.",
+				map[string]string{"service": s.Name, "source": src}))
+		}
+	}
+	return out
+}
+
+// isAbsolutePath covers POSIX roots, Windows drive letters and UNC shares.
+func isAbsolutePath(p string) bool {
+	if strings.HasPrefix(p, "/") || strings.HasPrefix(p, `\\`) {
+		return true
+	}
+	return len(p) > 2 && p[1] == ':' && (p[2] == '\\' || p[2] == '/') &&
+		(p[0] >= 'a' && p[0] <= 'z' || p[0] >= 'A' && p[0] <= 'Z')
 }
 
 func checkUndefinedVolumes(r Rule, p *compose.Project) []Finding {

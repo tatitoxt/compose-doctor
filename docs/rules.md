@@ -26,6 +26,7 @@ and by at least one fixture in `testdata/fixtures/`.
 | CD403 | healthy-condition-without-healthcheck | warning | `condition: service_healthy` on a service without a Compose `healthcheck` (or with `disable: true`). The image may define `HEALTHCHECK`, which an offline tool cannot see, so this is a warning, not an error. |
 | CD501 | undefined-volume | error | A named volume used by a service but not declared under top-level `volumes`. |
 | CD502 | undefined-network | error | A network joined by a service but not declared under top-level `networks` (`default` is implicit; skipped with `network_mode`). |
+| CD503 | absolute-bind-mount | warning | A bind mount uses an absolute host path — not portable across machines and CI; prefer `./relative`, a named volume or an env var. |
 
 ## Inactive profiles
 

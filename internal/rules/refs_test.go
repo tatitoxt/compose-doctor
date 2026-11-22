@@ -19,3 +19,22 @@ func TestReferenceRules(t *testing.T) {
 			"compose.yaml": "services:\n  a:\n    image: x\n    network_mode: \"service:b\"\n    networks: [front]\n  b: {image: x}\n"}},
 	})
 }
+
+func TestAbsoluteBindMounts(t *testing.T) {
+	runCases(t, []string{"CD503"}, []ruleCase{
+		{name: "short absolute path", files: map[string]string{
+			"compose.yaml": "services:\n  a:\n    image: x\n    volumes: [\"/home/fausto/data:/data\"]\n"},
+			want: []string{"CD503@compose.yaml:4"}},
+		{name: "long syntax bind", files: map[string]string{
+			"compose.yaml": "services:\n  a:\n    image: x\n    volumes:\n      - type: bind\n        source: /srv/shared\n        target: /data\n"},
+			want: []string{"CD503@compose.yaml:6"}},
+		{name: "relative and named are fine", files: map[string]string{
+			"compose.yaml": "services:\n  a:\n    image: x\n    volumes: [\"./dir:/data\", \"named:/other\"]\nvolumes:\n  named:\n"}},
+		{name: "windows drive letter", files: map[string]string{
+			"compose.yaml": "services:\n  a:\n    image: x\n    volumes: ['C:\\data:/data']\n"},
+			want: []string{"CD503@compose.yaml:4"}},
+		{name: "env source resolves to absolute", files: map[string]string{
+			"compose.yaml": "services:\n  a:\n    image: x\n    volumes: [\"${DATA_DIR:-/opt/data}:/data\"]\n"},
+			want: []string{"CD503@compose.yaml:4"}},
+	})
+}

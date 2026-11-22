@@ -93,6 +93,7 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
 | CD403 | healthy-condition-without-healthcheck | warning | `service_healthy` on a service with no healthcheck |
 | CD501 | undefined-volume | error | named volume not declared at top level |
 | CD502 | undefined-network | error | network not declared at top level |
+| CD503 | absolute-bind-mount | warning | bind mount with an absolute host path (not portable) |
 | CD601 | restart-policy-missing | info | advisory; fixable with `--advisory --fix` |
 
 Details, false-positive guards and certainty notes: [docs/rules.md](docs/rules.md).
@@ -300,7 +301,6 @@ macOS, with `-race`, plus staticcheck and govulncheck.
 - Image metadata is not available offline: a Dockerfile `HEALTHCHECK` is
   invisible (hence CD403 is a warning), and ports already in use on the host
   are not detected.
-- Absolute bind-mount paths are not checked; only relative ones.
 - YAML syntax error positions come from `yaml.v3` and sometimes point to the
   start of the enclosing block rather than the offending line (see
   `testdata/golden/invalid-yaml.txt`).
