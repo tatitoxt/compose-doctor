@@ -40,6 +40,6 @@ paths and the raw text written in the Compose file, never interpolated or
 environment values. This is tested with synthetic secrets in
 `internal/rules/vars_test.go`, `internal/cli/cli_test.go`,
 `internal/cli/golden_test.go` and `e2e/e2e_test.go`.
-| CD601 | restart-policy-missing | info | Advisory (--advisory): a service has no `restart` policy. |
+| CD601 | restart-policy-missing | info | Advisory (--advisory): a service has no `restart` policy. `check --advisory --fix` inserts `restart: unless-stopped` into the service's block (bare services are left alone). |
 | CD602 | resource-limits-missing | info | Advisory (--advisory): a service sets no `deploy.resources.limits`. |
 | CD603 | latest-tag | warning | Advisory (--advisory): an image has the `latest` tag or none. |

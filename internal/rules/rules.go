@@ -107,9 +107,10 @@ func All() []Rule {
 	return all
 }
 
-// Lookup returns the rule with the given ID.
+// Lookup returns the rule with the given ID, including advisory rules
+// (opt-in at run time but still real rules with metadata and fixability).
 func Lookup(id string) (Rule, bool) {
-	for _, r := range All() {
+	for _, r := range append(All(), opsRules()...) {
 		if r.ID == strings.ToUpper(id) {
 			return r, true
 		}

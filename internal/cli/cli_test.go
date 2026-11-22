@@ -136,6 +136,30 @@ func TestFixRemovesObsoleteVersionKey(t *testing.T) {
 	}
 }
 
+func TestFixAddsRestartPolicy(t *testing.T) {
+	dir := writeProject(t, "services:\n  app:\n    image: myapp\n    ports:\n      - \"80\"\n  bare:\n")
+	out, errOut, code := run([]string{"check", "--advisory", "--fix", dir}, nil)
+	if !strings.Contains(errOut, "fixed CD601") {
+		t.Fatalf("expected CD601 fix report, got code=%d err=%q out=%q", code, errOut, out)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "compose.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "  app:\n    restart: unless-stopped\n") {
+		t.Errorf("restart not inserted under app: %q", data)
+	}
+	if !strings.Contains(string(data), "  bare:\n") {
+		t.Errorf("bare service must be left alone: %q", data)
+	}
+	if strings.Contains(out, `service "app" has no restart policy`) {
+		t.Errorf("fixed finding should not remain: %q", out)
+	}
+	if !strings.Contains(out, `service "bare"`) {
+		t.Errorf("bare service's unfixable finding should remain: %q", out)
+	}
+}
+
 func TestFixLeavesNonFixableFindings(t *testing.T) {
 	dir := writeProject(t, "services:\n  app:\n    depends_on:\n      - db\n  db:\n    image: postgres:17\n")
 	out, errOut, code := run([]string{"check", "--fix", dir}, nil)

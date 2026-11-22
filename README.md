@@ -48,10 +48,11 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
   next entry), a bare `# compose-doctor:ignore` (all rules on that line)
   and `# compose-doctor:ignore-file` (the whole file). Suppressed findings
   are counted on stderr.
-- `check --fix` rewrites findings marked fixable in place — currently CD003
-  (`version:` key removal) — and reports each edit on stderr before printing
-  the remaining findings. Fixes only delete constructs Compose ignores, so a
-  valid file stays valid.
+- `check --fix` rewrites findings marked fixable in place — CD003
+  (`version:` key removal) and CD601 (inserts `restart: unless-stopped`)
+  — and reports each edit on stderr before printing the remaining
+  findings. Fixes are limited to edits Compose tolerates (dropping an
+  ignored key, adding a valid key), so a valid file stays valid.
 - Baseline files adopt legacy projects: `check --write-baseline` records the
   current findings to `compose-doctor-baseline.json` (or `--baseline PATH`);
   later runs suppress findings matching rule + file + message (line drift is
@@ -92,6 +93,7 @@ concrete suggestion. Its JSON output and exit codes are meant for CI.
 | CD403 | healthy-condition-without-healthcheck | warning | `service_healthy` on a service with no healthcheck |
 | CD501 | undefined-volume | error | named volume not declared at top level |
 | CD502 | undefined-network | error | network not declared at top level |
+| CD601 | restart-policy-missing | info | advisory; fixable with `--advisory --fix` |
 
 Details, false-positive guards and certainty notes: [docs/rules.md](docs/rules.md).
 
@@ -304,7 +306,10 @@ macOS, with `-race`, plus staticcheck and govulncheck.
   `testdata/golden/invalid-yaml.txt`).
 - CI runs on Linux and macOS only; Windows paths are handled in code
   (`SplitShortVolume` drive letters) but not tested on Windows.
-- No `--fix` and no published release binaries yet; build from source.
+- `--fix` covers only findings it can rewrite without judgement calls
+  (dropping `version:`, adding a restart policy); everything else is
+  reported for a human to decide. Release binaries build via GoReleaser
+  when a tag is pushed; until the first tag, build from source.
 - The rule set is small and opinionated; severities reflect the author's
   judgement documented in docs/rules.md, not measured false-positive rates.
 

@@ -25,6 +25,16 @@ type Result struct {
 // A top-level `version:` key: no indentation, quoted or plain scalar value.
 var versionKeyLine = regexp.MustCompile(`^version\s*:`)
 
+// A service key line inside `services:` (`  web:` — indented, scalar key,
+// nothing after the colon except an optional comment).
+var serviceKeyLine = regexp.MustCompile(`^(\s+)\S[^:]+:\s*(#.*)?$`)
+
+type op struct {
+	line       int // 0-based index the op anchors to
+	remove     bool
+	insertText string
+}
+
 // Apply rewrites the compose files referenced by fixable findings under
 // projectDir. It returns the applied fixes and the findings it could not fix
 // (non-fixable rules, or locations whose line no longer matches the expected
@@ -54,26 +64,21 @@ func Apply(projectDir string, findings []rules.Finding) (applied []Result, remai
 			continue
 		}
 		lines := strings.SplitAfter(string(data), "\n")
-		remove := map[int]bool{}
+		var ops []op
 		for _, i := range idxs {
-			line := findings[i].Location.Line - 1
-			if line < 0 || line >= len(lines) || !versionKeyLine.MatchString(lines[line]) {
+			o, ok := planOp(findings[i], lines)
+			if !ok {
 				continue
 			}
-			remove[line] = true
+			ops = append(ops, o)
 			fixed[i] = true
 			applied = append(applied, Result{RuleID: findings[i].RuleID, File: file, Line: findings[i].Location.Line})
 		}
-		if len(remove) == 0 {
+		if len(ops) == 0 {
 			continue
 		}
-		var out strings.Builder
-		for i, l := range lines {
-			if !remove[i] {
-				out.WriteString(l)
-			}
-		}
-		if werr := os.WriteFile(path, []byte(out.String()), 0o644); werr != nil {
+		out := rewrite(lines, ops)
+		if werr := os.WriteFile(path, []byte(out), 0o644); werr != nil {
 			return nil, nil, fmt.Errorf("writing %s: %w", file, werr)
 		}
 	}
@@ -89,4 +94,71 @@ func Apply(projectDir string, findings []rules.Finding) (applied []Result, remai
 		}
 	}
 	return applied, remaining, nil
+}
+
+// planOp maps a fixable finding to the textual op it needs, verifying the
+// anchored line still looks like what the rule reported. Returns false when
+// the file drifted or the shape is not safely rewritable.
+func planOp(f rules.Finding, lines []string) (op, bool) {
+	line := f.Location.Line - 1
+	if line < 0 || line >= len(lines) {
+		return op{}, false
+	}
+	switch f.RuleID {
+	case "CD003":
+		if !versionKeyLine.MatchString(lines[line]) {
+			return op{}, false
+		}
+		return op{line: line, remove: true}, true
+	case "CD601":
+		// Insert `restart: unless-stopped` inside the service's block mapping:
+		// the service key must end the line, and the next non-empty line must
+		// be a more-indented block (a scalar/empty service is left alone).
+		m := serviceKeyLine.FindStringSubmatch(lines[line])
+		if m == nil {
+			return op{}, false
+		}
+		indent := ""
+		for j := line + 1; j < len(lines); j++ {
+			body := lines[j]
+			if strings.TrimSpace(body) == "" {
+				continue
+			}
+			if !strings.HasPrefix(body, m[1]+" ") && !strings.HasPrefix(body, m[1]+"\t") {
+				return op{}, false
+			}
+			indent = body[:len(body)-len(strings.TrimLeft(body, " \t"))]
+			break
+		}
+		if indent == "" {
+			return op{}, false
+		}
+		return op{line: line, insertText: indent + "restart: unless-stopped\n"}, true
+	}
+	return op{}, false
+}
+
+// rewrite applies removals and insertions; inserts anchor after their line so
+// ordering is stable regardless of op order.
+func rewrite(lines []string, ops []op) string {
+	remove := map[int]bool{}
+	insert := map[int][]string{}
+	for _, o := range ops {
+		if o.remove {
+			remove[o.line] = true
+		}
+		if o.insertText != "" {
+			insert[o.line] = append(insert[o.line], o.insertText)
+		}
+	}
+	var out strings.Builder
+	for i, l := range lines {
+		if !remove[i] {
+			out.WriteString(l)
+		}
+		for _, t := range insert[i] {
+			out.WriteString(t)
+		}
+	}
+	return out.String()
 }

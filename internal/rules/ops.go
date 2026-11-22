@@ -9,7 +9,7 @@ import (
 
 func opsRules() []Rule {
 	return []Rule{
-		{ID: "CD601", Name: "restart-policy-missing", Severity: Info, check: checkRestartPolicy,
+		{ID: "CD601", Name: "restart-policy-missing", Severity: Info, check: checkRestartPolicy, Fixable: true,
 			Summary: "A service has no `restart` policy; containers default to `no` and stay down after a crash or reboot."},
 		{ID: "CD602", Name: "resource-limits-missing", Severity: Info, check: checkResourceLimits,
 			Summary: "A service sets no `deploy.resources.limits`; a runaway container can starve the host."},
