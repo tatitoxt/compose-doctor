@@ -157,7 +157,7 @@ func checkWatchPaths(r Rule, p *compose.Project) []Finding {
 	var out []Finding
 	for _, s := range p.ActiveServices() {
 		for _, w := range s.Watch {
-			if w.Path.Unresolved || w.Path.Value == "" || !isRelativePath(w.Path.Value) {
+			if w.Path.Unresolved || w.Path.Value == "" || isAbsolutePath(w.Path.Value) {
 				continue
 			}
 			if exists, _ := stat(p, w.Path.Value); exists {

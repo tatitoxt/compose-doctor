@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -79,15 +80,21 @@ func BaselineFromFindings(findings []Finding) []BaselineEntry {
 
 // ApplyBaseline drops findings matching a baseline entry and returns the kept
 // findings plus the number suppressed.
+// locRe strips "file:line:col" fragments so a baseline match survives lines
+// moving when unrelated content is inserted above them.
+var locRe = regexp.MustCompile(`\S+:\d+(:\d+)?`)
+
+func normMsg(s string) string { return locRe.ReplaceAllString(s, "<loc>") }
+
 func ApplyBaseline(findings []Finding, entries []BaselineEntry) ([]Finding, int) {
 	known := map[string]int{}
 	for _, e := range entries {
-		known[e.RuleID+"\x00"+e.File+"\x00"+e.Message]++
+		known[e.RuleID+"\x00"+e.File+"\x00"+normMsg(e.Message)]++
 	}
 	var kept []Finding
 	suppressed := 0
 	for _, f := range findings {
-		key := f.RuleID + "\x00" + f.Location.File + "\x00" + f.Message
+		key := f.RuleID + "\x00" + f.Location.File + "\x00" + normMsg(f.Message)
 		if known[key] > 0 {
 			known[key]--
 			suppressed++
@@ -103,11 +110,11 @@ func ApplyBaseline(findings []Finding, entries []BaselineEntry) ([]Finding, int)
 func StaleEntries(entries []BaselineEntry, findings []Finding) []BaselineEntry {
 	seen := map[string]bool{}
 	for _, f := range findings {
-		seen[f.RuleID+"\x00"+f.Location.File+"\x00"+f.Message] = true
+		seen[f.RuleID+"\x00"+f.Location.File+"\x00"+normMsg(f.Message)] = true
 	}
 	var stale []BaselineEntry
 	for _, e := range entries {
-		if !seen[e.RuleID+"\x00"+e.File+"\x00"+e.Message] {
+		if !seen[e.RuleID+"\x00"+e.File+"\x00"+normMsg(e.Message)] {
 			stale = append(stale, e)
 		}
 	}

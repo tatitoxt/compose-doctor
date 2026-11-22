@@ -14,7 +14,7 @@ func TestVariableRules(t *testing.T) {
 			".env":         "PG_TAG=16\n"}, environ: []string{"DB_PASSWORD=synthetic"}},
 		{name: "undefined grouped", files: map[string]string{
 			"compose.yaml": "services:\n  a:\n    image: \"x:${TAG}\"\n  b:\n    image: \"y:$TAG\"\n"},
-			want: []string{"CD201@compose.yaml:3"}},
+			want: []string{"CD201@compose.yaml:3", "CD201@compose.yaml:5:12"}},
 		{name: "defaults and escapes are fine", files: map[string]string{
 			"compose.yaml": "services:\n  a:\n    image: \"x:${TAG:-latest}\"\n    command: echo $$HOME ${OPT:+--flag}\n"}},
 		{name: "required unset", files: map[string]string{

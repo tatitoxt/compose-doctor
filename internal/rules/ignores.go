@@ -30,22 +30,90 @@ type Ignores struct {
 	lines map[int]map[string]bool
 }
 
+// commentStart returns the byte index of the first `#` that YAML treats as a
+// comment (outside quotes, at start or after whitespace), or -1.
+func commentStart(line string) int {
+	inS, inD := false, false
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case inS:
+			if c == '\'' {
+				inS = false
+			}
+		case inD:
+			if c == '"' {
+				inD = false
+			} else if c == '\\' {
+				i++
+			}
+		case c == '\'':
+			inS = true
+		case c == '"':
+			inD = true
+		case c == '#' && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t'):
+			return i
+		}
+	}
+	return -1
+}
+
+// blockScalarIndent returns the indentation to which a `|`/`>` block scalar
+// started at this line's indent extends, or -1 when the line does not open
+// one. Its content (more-indented following lines) is literal text, so
+// directives inside it must not be parsed.
+func opensBlockScalar(line string) bool {
+	t := strings.TrimRight(line, " \t\r")
+	i := len(t) - 1
+	for i >= 0 && (t[i] == '+' || t[i] == '-' || (t[i] >= '0' && t[i] <= '9')) {
+		i--
+	}
+	return i >= 0 && (t[i] == '|' || t[i] == '>')
+}
+
 // ParseIgnores scans raw Compose text for directives. A directive trailing
 // content on the same line governs that line; a directive on its own line
-// governs the next non-blank, non-comment line.
+// governs the next non-blank, non-comment line. `#` inside quoted strings or
+// block scalars is literal text, not a directive.
 func ParseIgnores(text string) Ignores {
 	ig := Ignores{lines: map[int]map[string]bool{}}
 	src := strings.Split(text, "\n")
-	pendingAll := -1 // own-line directive awaiting its governed line
+	pending := -1 // own-line directive awaiting its governed line
 	var pendingIDs map[string]bool
+	blockIndent := -1 // inside a literal/folded block scalar
 	for i, line := range src {
 		ln := i + 1
-		m := directiveRe.FindStringSubmatch(line)
-		if m == nil {
-			if strings.TrimSpace(line) != "" && !strings.HasPrefix(strings.TrimSpace(line), "#") && pendingAll >= 0 {
-				ig.lines[ln] = pendingIDs
-				pendingAll = -1
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		if blockIndent >= 0 {
+			if strings.TrimSpace(line) == "" || indent > blockIndent {
+				continue
 			}
+			blockIndent = -1
+		}
+		ci := commentStart(line)
+		code := line
+		if ci >= 0 {
+			code = line[:ci]
+		}
+		// Any real content line consumes a pending own-line directive, even
+		// when it also carries a trailing directive.
+		if strings.TrimSpace(code) != "" && pending >= 0 {
+			if ig.lines[ln] == nil {
+				ig.lines[ln] = map[string]bool{}
+			}
+			for k, v := range pendingIDs {
+				ig.lines[ln][k] = v
+			}
+			pending, pendingIDs = -1, nil
+		}
+		if strings.TrimSpace(code) != "" && opensBlockScalar(code) {
+			blockIndent = indent
+		}
+		if ci < 0 {
+			continue
+		}
+		m := directiveRe.FindStringSubmatch(line[ci:])
+		if m == nil {
 			continue
 		}
 		if m[1] == "ignore-file" {
@@ -56,8 +124,7 @@ func ParseIgnores(text string) Ignores {
 		for _, id := range ruleIDRe.FindAllString(m[2], -1) {
 			ids[id] = true
 		}
-		before := line[:strings.Index(line, "#")]
-		if strings.TrimSpace(before) != "" {
+		if strings.TrimSpace(code) != "" {
 			// Trailing comment: governs this line.
 			if ig.lines[ln] == nil {
 				ig.lines[ln] = map[string]bool{}
@@ -67,14 +134,14 @@ func ParseIgnores(text string) Ignores {
 			}
 			continue
 		}
-		if pendingAll >= 0 {
+		if pending >= 0 {
 			// Stacked own-line directives merge their ID sets.
 			for k, v := range ids {
 				pendingIDs[k] = v
 			}
 			continue
 		}
-		pendingAll, pendingIDs = ln, ids
+		pending, pendingIDs = ln, ids
 	}
 	return ig
 }

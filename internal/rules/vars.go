@@ -93,10 +93,12 @@ func varSuggestion(p *compose.Project, name string) string {
 func checkUndefinedVars(r Rule, p *compose.Project) []Finding {
 	var out []Finding
 	for _, g := range groupUses(p, func(ref compose.VarRef) bool { return !ref.Required() }) {
-		out = append(out, r.finding(g.uses[0].Loc,
-			fmt.Sprintf("variable %s is not set and will be replaced by an empty string%s", g.name, g.countSuffix()),
-			varSuggestion(p, g.name)+fmt.Sprintf(" If empty is intended, write ${%s:-} to make it explicit.", g.name),
-			g.evidence()))
+		for _, u := range g.uses {
+			out = append(out, r.finding(u.Loc,
+				fmt.Sprintf("variable %s is not set and will be replaced by an empty string%s", g.name, g.countSuffix()),
+				varSuggestion(p, g.name)+fmt.Sprintf(" If empty is intended, write ${%s:-} to make it explicit.", g.name),
+				g.evidence()))
+		}
 	}
 	return out
 }
@@ -108,10 +110,12 @@ func checkRequiredVars(r Rule, p *compose.Project) []Finding {
 		if p.LookupEnv(g.name) {
 			state = "is set but empty"
 		}
-		out = append(out, r.finding(g.uses[0].Loc,
-			fmt.Sprintf("required variable %s %s; docker compose will refuse to start%s", g.name, state, g.countSuffix()),
-			varSuggestion(p, g.name),
-			g.evidence()))
+		for _, u := range g.uses {
+			out = append(out, r.finding(u.Loc,
+				fmt.Sprintf("required variable %s %s; docker compose will refuse to start%s", g.name, state, g.countSuffix()),
+				varSuggestion(p, g.name),
+				g.evidence()))
+		}
 	}
 	return out
 }
