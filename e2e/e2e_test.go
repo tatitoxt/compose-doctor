@@ -111,6 +111,11 @@ func snapshot(t *testing.T, root string) map[string]string {
 			return err
 		}
 		entry := fmt.Sprintf("%v %d %d", info.Mode(), info.Size(), info.ModTime().UnixNano())
+		if d.IsDir() {
+			// Directory mtimes are unreliable on Windows (NTFS updates them
+			// lazily on enumeration); only their presence matters.
+			entry = "dir"
+		}
 		if info.Mode().IsRegular() {
 			data, err := os.ReadFile(path)
 			if err != nil {
