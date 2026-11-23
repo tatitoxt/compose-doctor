@@ -1,0 +1,9 @@
+exit=0
+Checked compose.yaml
+
+compose.yaml:6:9  error    CD501  service "db" uses named volume "backups", which is not declared under top-level volumes
+    hint: Declare it (`volumes: {backups: {}}`), or use "./backups" if you meant a bind mount of a local directory.
+compose.yaml:8:25  error    CD502  service "db" joins network "monitoring", which is not declared under top-level networks
+    hint: Declare it (`networks: {monitoring: {}}`), or mark it `external: true` if it is created outside this project.
+
+2 findings (2 error, 0 warning, 0 info)

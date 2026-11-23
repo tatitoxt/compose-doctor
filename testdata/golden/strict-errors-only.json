@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD201",
+      "rule": "undefined-variable",
+      "severity": "warning",
+      "message": "variable NGINX_TAG is not set and will be replaced by an empty string",
+      "location": {
+        "file": "compose.yaml",
+        "line": 3,
+        "column": 12
+      },
+      "evidence": {
+        "path": "services.web.image",
+        "variable": "NGINX_TAG"
+      },
+      "suggestion": "Set NGINX_TAG in the project .env file or the shell environment. If empty is intended, write ${NGINX_TAG:-} to make it explicit."
+    },
+    {
+      "rule_id": "CD402",
+      "rule": "depends-on-without-readiness",
+      "severity": "info",
+      "message": "service \"web\" waits only for \"cache\" to start, not to be ready",
+      "location": {
+        "file": "compose.yaml",
+        "line": 4,
+        "column": 18
+      },
+      "evidence": {
+        "condition": "service_started",
+        "dependency": "cache",
+        "service": "web"
+      },
+      "suggestion": "Add a healthcheck to \"cache\" and use the long syntax `depends_on: {cache: {condition: service_healthy}}`, or make \"web\" retry its connection on start-up."
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "error": 0,
+    "warning": 1,
+    "info": 1
+  }
+}

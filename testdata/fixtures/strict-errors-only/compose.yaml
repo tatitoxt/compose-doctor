@@ -1,0 +1,6 @@
+services:
+  web:
+    image: "nginx:${NGINX_TAG}"
+    depends_on: [cache]
+  cache:
+    image: redis:7

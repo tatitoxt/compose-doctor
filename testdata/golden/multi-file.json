@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "base.yaml",
+    "prod.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD301",
+      "rule": "host-port-conflict",
+      "severity": "error",
+      "message": "host port 3000/tcp is published twice by services \"api\" and \"web\": \"3000:3000\" at base.yaml:4:13 and \"3000:80\"",
+      "location": {
+        "file": "prod.yaml",
+        "line": 3,
+        "column": 13
+      },
+      "evidence": {
+        "other_location": "base.yaml:4:13",
+        "other_port": "3000:3000",
+        "other_service": "api",
+        "port": "3000:80",
+        "service": "web"
+      },
+      "suggestion": "Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one."
+    },
+    {
+      "rule_id": "CD403",
+      "rule": "healthy-condition-without-healthcheck",
+      "severity": "warning",
+      "message": "service \"web\" waits for \"api\" to be healthy, but \"api\" has no healthcheck in Compose",
+      "location": {
+        "file": "prod.yaml",
+        "line": 5,
+        "column": 7
+      },
+      "evidence": {
+        "dependency": "api",
+        "service": "web"
+      },
+      "suggestion": "Add a `healthcheck:` to \"api\". This is fine only if its image defines a Dockerfile HEALTHCHECK, which Compose Doctor cannot see offline."
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "error": 1,
+    "warning": 1,
+    "info": 0
+  }
+}

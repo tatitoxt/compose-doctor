@@ -1,0 +1,5 @@
+* text=auto
+
+# Fixtures and golden snapshots are compared byte-for-byte and include
+# hashes; never let autocrlf rewrite their line endings on Windows.
+testdata/** -text

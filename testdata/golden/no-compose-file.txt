@@ -1,0 +1,6 @@
+exit=3
+
+../../testdata/fixtures/no-compose-file  error    CD001  no Compose file found (looked for compose.yaml, compose.yml, docker-compose.yaml, docker-compose.yml)
+    hint: Fix the file so it can be read; `docker compose config` shows the same input as Docker Compose sees it. Check indentation (spaces, not tabs), quoting and the selected -f files.
+
+1 finding (1 error, 0 warning, 0 info)

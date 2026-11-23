@@ -1,0 +1,96 @@
+name: compose-doctor
+description: >-
+  Lint a Docker Compose project with compose-doctor — structure, security and
+  operational rules on the merged service model. Use with
+  `uses: tatitoxt/compose-doctor@<tag>`.
+author: tatitoxt
+branding:
+  icon: activity
+  color: green
+inputs:
+  version:
+    description: Release tag to install (e.g. v1.2.0) or "latest".
+    required: false
+    default: latest
+  args:
+    description: >-
+      Arguments passed verbatim to `compose-doctor check`, e.g.
+      `--strict --fail-on=warning --format sarif -f docker-compose.yml`.
+    required: false
+    default: ''
+  path:
+    description: Compose file or project directory to analyse.
+    required: false
+    default: .
+  install-only:
+    description: Install the binary but do not run `check` (for custom invocations).
+    required: false
+    default: 'false'
+outputs:
+  report:
+    description: Path of the report when args redirect output (always the check stdout file).
+    value: ${{ steps.check.outputs.report }}
+runs:
+  using: composite
+  steps:
+    - name: Resolve version
+      id: version
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "latest" ]; then
+          tag=$(curl -fsSL https://api.github.com/repos/tatitoxt/compose-doctor/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+        else
+          tag="${{ inputs.version }}"
+        fi
+        case "$tag" in v*) ;; *) tag="v$tag";; esac
+        [ -n "$tag" ] || { echo "::error::could not resolve compose-doctor version"; exit 1; }
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        echo "Using compose-doctor $tag"
+    - name: Install compose-doctor
+      id: install
+      shell: bash
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+      run: |
+        set -euo pipefail
+        os=$(uname -s | tr '[:upper:]' '[:lower:]')
+        case "$RUNNER_OS" in Windows) os=windows;; esac
+        arch=$(uname -m); case "$arch" in x86_64|amd64) arch=amd64;; aarch64|arm64) arch=arm64;; esac
+        ver="${TAG#v}"
+        base="https://github.com/tatitoxt/compose-doctor/releases/download/${TAG}"
+        work="$RUNNER_TEMP/compose-doctor-$TAG"; mkdir -p "$work"; cd "$work"
+        if [ "$os" = windows ]; then
+          pkg="compose-doctor_${ver}_${os}_${arch}.zip"
+        else
+          pkg="compose-doctor_${ver}_${os}_${arch}.tar.gz"
+        fi
+        curl -fsSLo "$pkg" "$base/$pkg"
+        curl -fsSLo checksums.txt "$base/compose-doctor_${ver}_checksums.txt"
+        grep " $pkg$" checksums.txt | sha256sum -c - || { echo "::error::checksum verification failed for $pkg"; exit 1; }
+        if [ "$os" = windows ]; then unzip -q -o "$pkg"; else tar xzf "$pkg"; fi
+        chmod +x compose-doctor 2>/dev/null || true
+        echo "$work" >> "$GITHUB_PATH"
+        echo "bin=$work/compose-doctor" >> "$GITHUB_OUTPUT"
+    - name: Run compose-doctor check
+      id: check
+      if: inputs.install-only != 'true'
+      shell: bash
+      env:
+        CD_BIN: ${{ steps.install.outputs.bin }}
+        CD_ARGS: ${{ inputs.args }}
+        CD_PATH: ${{ inputs.path }}
+      run: |
+        set -uo pipefail
+        report="$RUNNER_TEMP/compose-doctor-report-$GITHUB_RUN_ID-$GITHUB_ACTION.txt"
+        # CD_ARGS intentionally word-splits into flags; values are never
+        # re-evaluated, so inputs cannot inject shell commands. A read loop
+        # is used instead of mapfile (absent in macOS system Bash 3.2), and
+        # xargs without -r (a GNU-only flag skipped by BSD xargs).
+        argv=()
+        while IFS= read -r arg; do
+          [ -n "$arg" ] && argv+=("$arg")
+        done < <(printf '%s\n' "$CD_ARGS" | xargs -n1)
+        "$CD_BIN" check ${argv[@]+"${argv[@]}"} "$CD_PATH" | tee "$report"
+        rc=${PIPESTATUS[0]}
+        echo "report=$report" >> "$GITHUB_OUTPUT"
+        exit $rc

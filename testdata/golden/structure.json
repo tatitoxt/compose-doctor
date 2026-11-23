@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD003",
+      "rule": "obsolete-version-key",
+      "severity": "info",
+      "message": "the top-level `version` key is obsolete and ignored by Docker Compose v2",
+      "location": {
+        "file": "compose.yaml",
+        "line": 1,
+        "column": 1
+      },
+      "suggestion": "Remove the `version:` line; the Compose Specification does not use it."
+    },
+    {
+      "rule_id": "CD004",
+      "rule": "duplicate-key",
+      "severity": "error",
+      "message": "key \"environment\" is defined twice in the same mapping (first at compose.yaml:5:5)",
+      "location": {
+        "file": "compose.yaml",
+        "line": 7,
+        "column": 5
+      },
+      "evidence": {
+        "first_location": "compose.yaml:5:5",
+        "key": "environment",
+        "path": "services.web.environment"
+      },
+      "suggestion": "Keep a single definition; merge the two blocks if both are needed."
+    },
+    {
+      "rule_id": "CD002",
+      "rule": "service-without-image-or-build",
+      "severity": "error",
+      "message": "service \"sidecar\" has neither an image nor a build context",
+      "location": {
+        "file": "compose.yaml",
+        "line": 9,
+        "column": 3
+      },
+      "evidence": {
+        "service": "sidecar"
+      },
+      "suggestion": "Add `image: <name>` to pull an image or `build: <path>` to build one."
+    }
+  ],
+  "summary": {
+    "total": 3,
+    "error": 2,
+    "warning": 0,
+    "info": 1
+  }
+}

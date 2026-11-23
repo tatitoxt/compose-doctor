@@ -1,0 +1,13 @@
+exit=0
+Checked compose.yaml, compose.override.yaml
+
+compose.yaml:10:9  error    CD301  host port 8080/tcp is published twice by services "api" and "web": "8080:8080" at compose.yaml:5:9 and "8080:80"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+compose.yaml:11:9  error    CD301  services "metrics" and "web" publish the same host port: "${METRICS_PORT:-9090}:9100" at compose.yaml:21:9 and "127.0.0.2:9090:80"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+compose.yaml:21:9  error    CD301  services "api" and "metrics" publish the same host port: "127.0.0.1:9090:9090" at compose.yaml:6:9 and "${METRICS_PORT:-9090}:9100"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+compose.override.yaml:8:9  error    CD301  host port 53/udp is published twice by services "dns" and "worker": "53:53/udp" at compose.yaml:16:9 and "53:5353/udp"
+    hint: Only one mapping can bind a host port. Change one published port, bind them to different host IPs, or omit the host port to let Docker pick one.
+
+4 findings (4 error, 0 warning, 0 info)

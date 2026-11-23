@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "tool": "compose-doctor",
+  "version": "dev",
+  "files": [
+    "compose.yaml"
+  ],
+  "profiles": [],
+  "findings": [
+    {
+      "rule_id": "CD102",
+      "rule": "build-context-not-found",
+      "severity": "error",
+      "message": "service \"api\": build context \"./backend\" not found",
+      "location": {
+        "file": "compose.yaml",
+        "line": 3,
+        "column": 12
+      },
+      "evidence": {
+        "context": "./backend",
+        "service": "api"
+      },
+      "suggestion": "Check the path; build contexts are resolved from the project directory."
+    },
+    {
+      "rule_id": "CD101",
+      "rule": "env-file-not-found",
+      "severity": "error",
+      "message": "service \"api\": env_file \"./config/api.env\" not found",
+      "location": {
+        "file": "compose.yaml",
+        "line": 5,
+        "column": 9
+      },
+      "evidence": {
+        "path": "./config/api.env",
+        "service": "api"
+      },
+      "suggestion": "Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`."
+    },
+    {
+      "rule_id": "CD102",
+      "rule": "build-context-not-found",
+      "severity": "error",
+      "message": "service \"web\": dockerfile \"Dockerfile.prod\" not found in build context \"./web\"",
+      "location": {
+        "file": "compose.yaml",
+        "line": 9,
+        "column": 19
+      },
+      "evidence": {
+        "context": "./web",
+        "dockerfile": "Dockerfile.prod",
+        "service": "web"
+      },
+      "suggestion": "`dockerfile` is resolved relative to the build context, not to the Compose file."
+    },
+    {
+      "rule_id": "CD101",
+      "rule": "env-file-not-found",
+      "severity": "error",
+      "message": "service \"web\": env_file \"./web.env\" not found",
+      "location": {
+        "file": "compose.yaml",
+        "line": 10,
+        "column": 15
+      },
+      "evidence": {
+        "path": "./web.env",
+        "service": "web"
+      },
+      "suggestion": "A template exists: copy \"./web.env.example\" to \"./web.env\" and fill in local values. Check the file name and location; env_file paths are resolved from the project directory (where the first Compose file lives). If the file is optional, use the long syntax with `required: false`."
+    },
+    {
+      "rule_id": "CD103",
+      "rule": "bind-source-not-found",
+      "severity": "warning",
+      "message": "service \"web\": bind mount source \"./static\" does not exist",
+      "location": {
+        "file": "compose.yaml",
+        "line": 12,
+        "column": 9
+      },
+      "evidence": {
+        "service": "web",
+        "source": "./static"
+      },
+      "suggestion": "Docker creates a missing short-syntax bind source as an empty, root-owned directory, which usually hides a typo. Create the path or fix the name."
+    },
+    {
+      "rule_id": "CD103",
+      "rule": "bind-source-not-found",
+      "severity": "warning",
+      "message": "service \"web\": bind mount source \"./certs\" does not exist",
+      "location": {
+        "file": "compose.yaml",
+        "line": 14,
+        "column": 17
+      },
+      "evidence": {
+        "service": "web",
+        "source": "./certs"
+      },
+      "suggestion": "With the long volume syntax Docker Compose fails with \"bind source path does not exist\". Create the path or fix the name."
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "error": 4,
+    "warning": 2,
+    "info": 0
+  }
+}

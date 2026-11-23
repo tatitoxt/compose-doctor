@@ -1,0 +1,22 @@
+services:
+  api:
+    image: example/api
+    depends_on:
+      - db
+      - cache
+      - search
+  worker:
+    image: example/worker
+    depends_on:
+      queue:
+        condition: service_healthy
+      db:
+        condition: service_started
+  db:
+    image: postgres:16
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+  cache:
+    image: redis:7
+  queue:
+    image: rabbitmq:3
